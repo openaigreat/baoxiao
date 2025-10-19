@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card shadow">
+    <div class="card-body">
+        <h2 class="card-title mb-4">欢迎，{{ session.username }}！</h2>
+        <div class="list-group">
+            <a href="/add_project" class="list-group-item list-group-item-action">📦 输入项目</a>
+            <a href="/add_expense" class="list-group-item list-group-item-action">💸 输入支出</a>
+            <a href="/stats" class="list-group-item list-group-item-action">📊 查看统计</a>
+        </div>
+        <div class="mt-3 d-flex gap-2">
+            <a href="/change_password" class="btn btn-warning flex-grow-1">修改密码</a>
+            <a href="/logout" class="btn btn-danger flex-grow-1">退出登录</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

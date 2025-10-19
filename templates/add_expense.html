@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card shadow">
+    <div class="card-body">
+        <h2 class="card-title mb-4">新增支出</h2>
+        
+        <!-- 手动输入表单 -->
+        <form method="POST" enctype="multipart/form-data">
+            <!-- 隐藏的用户ID字段 -->
+            <input type="hidden" name="user_id" value="{{ session.user_id }}">
+            
+            <div class="mb-3">
+                <label class="form-label">日期</label>
+                <input type="date" name="date" class="form-control" 
+                       value="{{ session.last_date or current_date }}" required>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">归属项目</label>
+                <select name="project_id" class="form-select" required>
+                    <option value="">请选择项目</option>
+                    {% for project in projects %}
+                    <option value="{{ project.id }}" 
+                        {% if project.id == session.last_project %}selected{% endif %}>
+                        （{{ project.id }}）{{ project.year }}年-{{ project.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">用途</label>
+                <input type="text" name="purpose" class="form-control" required>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">金额</label>
+                <input type="number" step="0.01" name="amount" class="form-control" required>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">备注</label>
+                <textarea name="note" class="form-control" rows="2"></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-success w-100">提交</button>
+        </form>    
+
+        <!-- Excel 和 CSV 导入区域 -->
+        <div class="mt-4 pt-3 border-top">
+            <h5 class="mb-3">或从文件导入</h5>
+            <form method="POST" enctype="multipart/form-data" action="{{ url_for('expenses.import_expense') }}">
+                <div class="mb-3">
+                    <input type="file" name="excel_file" class="form-control" 
+                           accept=".xlsx, .xls, .csv" id="excelFile">
+                </div>
+                <button type="submit" class="btn btn-secondary" 
+                        name="action" value="import">导入文件</button>
+                
+                <!-- 模板下载提示 -->
+                <small class="d-block mt-2 text-muted">
+                    下载模板：
+                    <a href="/static/template.xlsx" download>点击下载Excel模板</a>
+                    （需包含日期、项目ID、用途、金额、备注列）
+                </small>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

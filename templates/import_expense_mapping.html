@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card shadow">
+    <div class="card-body">
+        <h2 class="card-title mb-4">映射字段</h2>
+        
+        <form method="post" action="{{ url_for('expenses.import_expense_mapping') }}">
+            <div class="mb-3">
+                <label for="date_col">日期:</label>
+                <select id="date_col" name="date_col" required>
+                    <option value="">请选择日期列</option>
+                    {% for col in excel_columns %}
+                        <option value="{{ col }}">{{ col }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label for="project_col">项目ID:</label>
+                <select id="project_col" name="project_col" required>
+                    <option value="">请选择项目ID列</option>
+                    {% for col in excel_columns %}
+                        <option value="{{ col }}">{{ col }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label for="purpose_col">用途:</label>
+                <select id="purpose_col" name="purpose_col" required>
+                    <option value="">请选择用途列</option>
+                    {% for col in excel_columns %}
+                        <option value="{{ col }}">{{ col }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label for="amount_col">金额:</label>
+                <select id="amount_col" name="amount_col" required>
+                    <option value="">请选择金额列</option>
+                    {% for col in excel_columns %}
+                        <option value="{{ col }}">{{ col }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label for="note_col">备注:</label>
+                <select id="note_col" name="note_col">
+                    <option value="">无</option>
+                    {% for col in excel_columns %}
+                        <option value="{{ col }}">{{ col }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <input type="hidden" name="temp_file" value="{{ temp_file }}">
+            <button type="submit" class="btn btn-secondary w-100">映射并导入</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

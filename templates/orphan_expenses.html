@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card shadow">
+    <div class="card-body">
+        <h2 class="card-title mb-4">孤立支出明细</h2>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>用途</th>
+                        <th>金额</th>
+                        <th>记录人</th>
+                        <th>备注</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in expenses %}
+                    <tr>
+                        <td>{{ expense.date }}</td>
+                        <td>{{ expense.purpose }}</td>
+                        <td>{{ "¥%.2f"|format(expense.amount) }}</td>
+                        <td>{{ expense.username }}</td>
+                        <td>{{ expense.note }}</td>
+                        <td>
+                            {% if expense.user_id == session.user_id %}
+                            <a href="{{ url_for('stats.edit_expense', expense_id=expense.id) }}" class="btn btn-sm btn-warning">
+                                编辑
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-4">
+            <h5>总的孤立支出: ¥{{ total_amount|round(2) }}</h5>
+        </div>
+    </div>
+</div>
+{% endblock %}

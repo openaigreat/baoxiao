@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .smaller-text {
+        font-size: 0.6em; /* 调整为你需要的大小 */
+    }
+</style>
+<div class="card shadow">
+    <div class="card-body">
+        <h2 class="card-title mb-4">支出明细 <small class="smaller-text">({{ project.id }}) - {{ project.name }}</small>
+        {% if session.user_id == 2 %}
+        <a href="{{ url_for('projects.edit_project', project_id=project.id) }}" class="btn btn-sm btn-warning float-end">
+            修改项目信息
+        </a>
+        {% endif %}
+        </h2>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>用途</th>
+                        <th>金额</th>
+                        <th>记录人</th>
+                        <th>备注</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in expenses %}
+                    <tr>
+                        <td>{{ expense.date }}</td>
+                        <td>{{ expense.purpose }}</td>
+                        <td>{{ "¥%.2f"|format(expense.amount) }}</td>
+                        <td><a href="{{ url_for('stats.expenses', project_id=project.id, user=expense.user_id) }}">{{ expense.username }}</a></td>
+                        <td>{{ expense.note }}</td>
+                        <td>
+                            {% if expense.user_id == session.user_id %}
+                            <a href="{{ url_for('stats.edit_expense', expense_id=expense.id) }}" class="btn btn-sm btn-warning">
+                                编辑
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <tr>
+                        <td colspan="2"></td>
+                        <td><strong>总计: ¥{{ total_amount }}</strong></td>
+                        <td>
+                            {% if request.args.get('user') %}
+                            <a href="{{ url_for('stats.expenses', project_id=project.id) }}" class="btn btn-sm btn-secondary">
+                                显示全部
+                            </a>
+                            {% endif %}
+                        </td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-3">
+
+        </div>
+    </div>
+</div>
+{% endblock %}
