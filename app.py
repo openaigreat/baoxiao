@@ -20,8 +20,11 @@ def create_app():
 
     @app.route('/')
     def index():
+        # 直接返回主页，无需登录验证
+        # 为了兼容性，设置一个默认用户信息
         if 'user_id' not in session:
-            return redirect(url_for('auth.login'))
+            session['user_id'] = 1
+            session['username'] = '默认用户'
         return render_template('index.html')
 
     return app

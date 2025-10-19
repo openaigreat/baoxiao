@@ -18,15 +18,18 @@
             
             <div class="mb-3">
                 <label class="form-label">归属项目</label>
-                <select name="project_id" class="form-select" required>
-                    <option value="">请选择项目</option>
+                <select name="project_id" class="form-select">
+                    <option value="">无项目（可选）</option>
                     {% for project in projects %}
                     <option value="{{ project.id }}" 
                         {% if project.id == session.last_project %}selected{% endif %}>
-                        （{{ project.id }}）{{ project.year }}年-{{ project.name }}
+                        （{{ project.id }}）{{ project.name }}
                     </option>
                     {% endfor %}
                 </select>
+                <div class="mt-1">
+                    <a href="{{ url_for('projects.add_project') }}" class="text-primary small">+ 快捷添加新项目</a>
+                </div>
             </div>
             
             <div class="mb-3">

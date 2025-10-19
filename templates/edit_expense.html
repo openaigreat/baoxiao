@@ -5,7 +5,7 @@
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2 class="card-title">编辑支出</h2>
-            <form action="{{ url_for('stats.delete_expense', expense_id=expense.id) }}" method="POST" id="deleteForm" style="display:inline;">
+            <form action="{{ url_for('stats.delete_expense', expense_id=expense.id) }}" method="POST" id="deleteForm" style="display:inline;" onsubmit="return false;">
                 <button type="button" class="btn btn-danger" onclick="confirmDelete()">删除本笔支出</button>
             </form>
         </div>
@@ -17,14 +17,18 @@
             </div>
             <div class="mb-3">
                 <label class="form-label">归属项目</label>
-                <select name="project_id" class="form-select" required>
+                <select name="project_id" class="form-select">
+                    <option value="">无项目（可选）</option>
                     {% for project in projects %}
                     <option value="{{ project.id }}" 
                         {% if project.id == expense.project_id %}selected{% endif %}>
-                        {{ project.name }}（{{ project.year }}年）
+                        {{ project.name }}
                     </option>
                     {% endfor %}
                 </select>
+                <div class="mt-1">
+                    <a href="{{ url_for('projects.add_project') }}" class="text-primary small">+ 快捷添加新项目</a>
+                </div>
             </div>
             <div class="mb-3">
                 <label class="form-label">用途</label>

@@ -11,8 +11,11 @@ bp = Blueprint('expenses', __name__)
 
 @bp.route('/add_expense', methods=['GET', 'POST'])
 def add_expense():
+    # 无需登录验证
+    # 为了兼容性，设置一个默认用户信息
     if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
+        session['user_id'] = 1
+        session['username'] = '默认用户'
     
     conn = get_db()
     try:
@@ -22,9 +25,14 @@ def add_expense():
             if 'date' not in request.form:
                 return "日期字段不能为空", 400
             date = request.form['date']
-            project_id = int(request.form['project_id'])
+            project_id = request.form['project_id']
+            if project_id == '':
+                project_id = None
+            else:
+                project_id = int(project_id)
+                session['last_project'] = project_id
+            
             session['last_date'] = date
-            session['last_project'] = project_id
             
             conn.execute('''
                 INSERT INTO expenses (date, project_id, purpose, amount, note, user_id)
@@ -35,12 +43,12 @@ def add_expense():
                 request.form['purpose'],
                 float(request.form['amount']),
                 request.form['note'],
-                session['user_id']
+                1  # 使用固定值1，避免引用users表
             ))
             conn.commit()
-            return redirect(url_for('expenses.add_expense'))
+            return redirect(url_for('stats.stats'))
         
-        projects = conn.execute('SELECT * FROM projects').fetchall()
+        projects = conn.execute('SELECT id, name FROM projects').fetchall()
         current_date = datetime.now().strftime('%Y-%m-%d')  # 使用 datetime 模块
         return render_template('add_expense.html', 
                             projects=projects,
@@ -145,8 +153,7 @@ def import_expense_final():
                 # === 项目ID处理 ===
                 project_id = row[mapping['project_col']]
                 if pd.isna(project_id):
-                    flash(f'第 {index+2} 行项目ID为空', 'warning')
-                    continue  # 跳过插入操作
+                    project_id = None  # 允许项目ID为空，设置为None
                 else:
                     try:
                         project_id = int(project_id)
@@ -201,11 +208,14 @@ def import_expense_final():
         if os.path.exists(temp_path):
             os.remove(temp_path)  # 清理临时文件
 
-    return redirect(url_for('expenses.add_expense'))
+    return redirect(url_for('stats.stats'))
 @bp.route('/edit_expense/<int:expense_id>', methods=['GET', 'POST'])
 def edit_expense(expense_id):
+    # 无需登录验证
+    # 为了兼容性，设置一个默认用户信息
     if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
+        session['user_id'] = 1
+        session['username'] = '默认用户'
     
     conn = get_db()
     try:
@@ -218,6 +228,12 @@ def edit_expense(expense_id):
             abort(403)
         
         if request.method == 'POST':
+            project_id = request.form['project_id']
+            if project_id == '':
+                project_id = None
+            else:
+                project_id = int(project_id)
+                
             conn.execute('''
                 UPDATE expenses SET
                     date = ?,
@@ -228,16 +244,16 @@ def edit_expense(expense_id):
                 WHERE id = ?
             ''', (
                 request.form['date'],
-                int(request.form['project_id']),
+                project_id,
                 request.form['purpose'],
                 float(request.form['amount']),
                 request.form['note'],
                 expense_id
             ))
             conn.commit()
-            return redirect(url_for('stats.expenses', project_id=expense['project_id']))  # 修改这里的端点名称
+            return redirect(url_for('stats.stats'))
         
-        projects = conn.execute('SELECT * FROM projects').fetchall()
+        projects = conn.execute('SELECT id, name FROM projects').fetchall()
         return render_template('edit_expense.html', 
                              expense=expense, 
                              projects=projects)

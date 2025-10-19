@@ -18,14 +18,20 @@
                 <tbody>
                     {% for item in stats %}
                     <tr>
-                        <td><small>({{ item.id }}){{ item.year }}年</small>-{{ item.name }}</td>
+                        <td><small>({{ item.id }})</small>{{ item.name }}</td>
                         <td>{{ "¥%.2f"|format(item.project_amount) }}</td>
                         <td>{{ "¥%.2f"|format(item.total_expense or 0) }}</td>
                         <td>{{ item.note }}</td>
                         <td>
+                            {% if item.id %}
                             <a href="{{ url_for('stats.expenses', project_id=item.id) }}" class="btn btn-sm btn-primary">
                                 查看明细
                             </a>
+                            {% else %}
+                            <a href="{{ url_for('stats.orphan_expenses') }}" class="btn btn-sm btn-primary">
+                                查看明细
+                            </a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -60,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
             data.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'mb-2';
-                div.innerHTML = `<strong>${item.username}</strong>（ ¥${item.total_amount.toFixed(2)}）`;
+                div.innerHTML = `¥${item.total_amount.toFixed(2)}`;
                 div.addEventListener('click', () => {
                     window.location.href = '/orphan_expenses';
                 });

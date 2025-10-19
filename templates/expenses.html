@@ -9,11 +9,12 @@
 <div class="card shadow">
     <div class="card-body">
         <h2 class="card-title mb-4">支出明细 <small class="smaller-text">({{ project.id }}) - {{ project.name }}</small>
-        {% if session.user_id == 2 %}
-        <a href="{{ url_for('projects.edit_project', project_id=project.id) }}" class="btn btn-sm btn-warning float-end">
+        <a href="{{ url_for('projects.edit_project', project_id=project.id) }}" class="btn btn-sm btn-warning float-end me-2">
             修改项目信息
         </a>
-        {% endif %}
+        <button id="batch-assign-btn" class="btn btn-sm btn-primary float-end me-2" disabled>
+            更新归属项目
+        </button>
         </h2>
         <div class="table-responsive">
             <table class="table table-hover">
@@ -21,8 +22,8 @@
                     <tr>
                         <th>日期</th>
                         <th>用途</th>
+                        <th><input type="checkbox" id="select-all"></th>
                         <th>金额</th>
-                        <th>记录人</th>
                         <th>备注</th>
                         <th>操作</th>
                     </tr>
@@ -32,28 +33,21 @@
                     <tr>
                         <td>{{ expense.date }}</td>
                         <td>{{ expense.purpose }}</td>
+                        <td><input type="checkbox" class="expense-checkbox" value="{{ expense.id }}"></td>
                         <td>{{ "¥%.2f"|format(expense.amount) }}</td>
-                        <td><a href="{{ url_for('stats.expenses', project_id=project.id, user=expense.user_id) }}">{{ expense.username }}</a></td>
                         <td>{{ expense.note }}</td>
                         <td>
-                            {% if expense.user_id == session.user_id %}
                             <a href="{{ url_for('stats.edit_expense', expense_id=expense.id) }}" class="btn btn-sm btn-warning">
                                 编辑
                             </a>
-                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
                     <tr>
-                        <td colspan="2"></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
                         <td><strong>总计: ¥{{ total_amount }}</strong></td>
-                        <td>
-                            {% if request.args.get('user') %}
-                            <a href="{{ url_for('stats.expenses', project_id=project.id) }}" class="btn btn-sm btn-secondary">
-                                显示全部
-                            </a>
-                            {% endif %}
-                        </td>
                         <td colspan="2"></td>
                     </tr>
                 </tbody>
@@ -64,4 +58,239 @@
         </div>
     </div>
 </div>
+
+<!-- 项目选择模态框 -->
+<div class="modal fade" id="projectModal" tabindex="-1" aria-labelledby="projectModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="projectModalLabel">选择归属项目</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- 使用实际的表单标签，而不是只有ID -->
+                <form id="assign-project-form" method="POST" action="/batch_assign_project">
+                    <input type="hidden" id="selected-expense-ids" name="expense_ids">
+                    <div class="mb-3">
+                        <label for="project_id" class="form-label">选择项目</label>
+                        <select class="form-select" id="project_id" name="project_id" required>
+                            <option value="">请选择项目</option>
+                            {% for p in projects %}
+                            <option value="{{ p.id }}">{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="text-end">
+                        <button id="open-add-project-modal" type="button" class="text-primary text-sm bg-transparent border-none p-0" style="cursor: pointer; text-decoration: underline; text-decoration-thickness: from-font;">添加新项目</button>
+                    </div>
+                    <div id="debugInfo" style="margin-top: 10px; font-size: 12px; color: #666;"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="submit" form="assign-project-form" class="btn btn-primary">确认分配</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加项目模态框 -->
+<div class="modal fade" id="addProjectModal" tabindex="-1" aria-labelledby="addProjectModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addProjectModalLabel">添加新项目</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="add-project-form">
+                    <div class="mb-3">
+                        <label for="project-name" class="form-label">项目名称</label>
+                        <input type="text" class="form-control" id="project-name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="project-note" class="form-label">项目备注</label>
+                        <textarea class="form-control" id="project-note" name="note" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="submit" form="add-project-form" class="btn btn-primary">添加</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 全选/取消全选
+const selectAllCheckbox = document.getElementById('select-all');
+const expenseCheckboxes = document.querySelectorAll('.expense-checkbox');
+const batchAssignBtn = document.getElementById('batch-assign-btn');
+
+selectAllCheckbox.addEventListener('change', function() {
+    expenseCheckboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+    });
+    updateBatchButton();
+});
+
+expenseCheckboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', updateBatchButton);
+});
+
+function updateBatchButton() {
+    const checkedCount = document.querySelectorAll('.expense-checkbox:checked').length;
+    batchAssignBtn.disabled = checkedCount === 0;
+}
+
+// 从项目选择模态框打开添加项目模态框
+document.getElementById('open-add-project-modal').addEventListener('click', function() {
+    // 先关闭当前的项目选择模态框
+    const projectModal = bootstrap.Modal.getInstance(document.getElementById('projectModal'));
+    if (projectModal) {
+        projectModal.hide();
+    }
+    
+    // 然后打开添加项目模态框
+    const addProjectModal = new bootstrap.Modal(document.getElementById('addProjectModal'));
+    addProjectModal.show();
+});
+
+// 打开项目选择模态框
+batchAssignBtn.addEventListener('click', function() {
+    const selectedIds = Array.from(document.querySelectorAll('.expense-checkbox:checked'))
+        .map(checkbox => checkbox.value);
+    
+    // 检查是否有选中的支出记录
+    if (selectedIds.length === 0) {
+        alert('请先选择要分配的支出记录');
+        return;
+    }
+    
+    // 使用正确的字段ID
+    document.getElementById('selected-expense-ids').value = selectedIds.join(',');
+    console.log('已选择的支出ID:', selectedIds.join(','));
+    
+    // 在打开模态框之前更新项目列表
+    updateProjectSelectList();
+    
+    // 打开模态框
+    const projectModal = new bootstrap.Modal(document.getElementById('projectModal'));
+    projectModal.show();
+});
+
+// 更新项目选择下拉列表
+function updateProjectSelectList() {
+    fetch('/get_all_projects')
+        .then(response => response.json())
+        .then(data => {
+            // 使用正确的选择框ID
+            const projectSelect = document.getElementById('project_id');
+            if (projectSelect) {
+                console.log('更新项目列表，共', data.projects.length, '个项目');
+                // 清空现有选项，保留"请选择项目"选项
+                const placeholderOption = projectSelect.querySelector('option[value=""]');
+                projectSelect.innerHTML = '';
+                if (placeholderOption) {
+                    projectSelect.appendChild(placeholderOption);
+                }
+                
+                // 添加新选项
+                data.projects.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project.id;
+                    option.textContent = project.name;
+                    projectSelect.appendChild(option);
+                });
+            } else {
+                console.error('未找到项目选择下拉列表元素');
+            }
+        })
+        .catch(error => {
+            console.error('更新项目列表失败:', error);
+        });
+}
+
+// 提交添加项目表单
+document.getElementById('add-project-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('/add_project', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 关闭模态框
+            const addProjectModal = bootstrap.Modal.getInstance(document.getElementById('addProjectModal'));
+            addProjectModal.hide();
+            
+            // 更新项目选择下拉列表
+            updateProjectSelectList();
+            
+            // 重新打开项目选择模态框
+            const projectModal = new bootstrap.Modal(document.getElementById('projectModal'));
+            projectModal.show();
+            
+            // 显示成功消息
+            alert('项目添加成功!');
+        } else {
+            alert('项目添加失败: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('添加项目时发生错误:', error);
+        alert('添加项目时发生错误');
+    });
+});
+
+// 为分配项目表单添加提交事件监听器
+document.getElementById('assign-project-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('/batch_assign_project', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('网络响应错误');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // 关闭模态框
+            const projectModal = bootstrap.Modal.getInstance(document.getElementById('projectModal'));
+            if (projectModal) {
+                projectModal.hide();
+            }
+            alert('成功归属 ' + data.count + ' 条记录');
+            window.location.reload();
+        } else {
+            alert('归属失败: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('提交失败: ' + error);
+    });
+});
+
+// 等待DOM加载完成后再执行JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('页面加载完成');
+});
+</script>
 {% endblock %}
