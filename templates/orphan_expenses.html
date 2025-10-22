@@ -129,18 +129,61 @@ const selectedExpensesInput = document.getElementById('selected-expenses');
 selectAllCheckbox.addEventListener('change', function() {
     expenseCheckboxes.forEach(checkbox => {
         checkbox.checked = this.checked;
+        // 更新行样式
+        const row = checkbox.closest('tr');
+        if (this.checked) {
+            row.classList.add('bg-primary-subtle');
+        } else {
+            row.classList.remove('bg-primary-subtle');
+        }
     });
     updateBatchButtonState();
 });
 
 expenseCheckboxes.forEach(checkbox => {
-    checkbox.addEventListener('change', updateBatchButtonState);
+    checkbox.addEventListener('change', function() {
+        // 更新行样式
+        const row = this.closest('tr');
+        if (this.checked) {
+            row.classList.add('bg-primary-subtle');
+        } else {
+            row.classList.remove('bg-primary-subtle');
+        }
+        updateBatchButtonState();
+    });
+    
+    // 防止点击复选框时触发行的点击事件
+    checkbox.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
 });
 
 function updateBatchButtonState() {
     const checkedCount = document.querySelectorAll('.expense-checkbox:checked').length;
     batchAssignBtn.disabled = checkedCount === 0;
 }
+
+// 为每一行添加点击事件
+const rows = document.querySelectorAll('tbody tr');
+rows.forEach(row => {
+    row.addEventListener('click', function() {
+        const checkbox = this.querySelector('.expense-checkbox');
+        if (checkbox) {
+            // 切换复选框状态
+            checkbox.checked = !checkbox.checked;
+            
+            // 更新行样式
+            if (checkbox.checked) {
+                this.classList.add('bg-primary-subtle');
+            } else {
+                this.classList.remove('bg-primary-subtle');
+            }
+            
+            // 更新批量按钮状态
+            updateBatchButtonState();
+        }
+    });
+});
 
 // 打开添加项目模态框
 document.getElementById('add-project-btn').addEventListener('click', function() {
