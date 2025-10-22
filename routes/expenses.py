@@ -165,7 +165,22 @@ def import_expense_final():
                 purpose = str(row[mapping['purpose_col']]) if not pd.isna(row[mapping['purpose_col']]) else '未填写用途'
                 
                 # === 金额处理 ===
-                amount = float(row[mapping['amount_col']]) if not pd.isna(row[mapping['amount_col']]) else 0.0
+                # 添加金额格式化功能，处理带有货币符号或分隔符的情况
+                amount_value = row[mapping['amount_col']]
+                if pd.isna(amount_value):
+                    amount = 0.0
+                else:
+                    # 转换为字符串并进行清理
+                    amount_str = str(amount_value)
+                    # 移除非数字字符（保留小数点）
+                    import re
+                    amount_str = re.sub(r'[^0-9.]', '', amount_str)
+                    try:
+                        amount = float(amount_str)
+                    except ValueError:
+                        flash(f'第 {index+2} 行金额格式错误，无法转换为数字', 'warning')
+                        error_count += 1
+                        continue  # 跳过此行
                 
                 # === 备注处理 ===
                 note = ''
@@ -198,7 +213,14 @@ def import_expense_final():
                 error_count += 1
 
         conn.commit()
-        flash(f'成功导入 {success_count}/{len(df)} 条记录, 跳过 {error_count} 条记录', 'success')
+        # 改进导入结果提示，更清晰地显示成功和失败的记录数
+        total_records = len(df)
+        if success_count == total_records:
+            flash(f'🎉 成功导入全部 {success_count} 条记录！', 'success')
+        elif success_count > 0:
+            flash(f'✅ 部分成功：成功导入 {success_count} 条记录，失败 {error_count} 条记录', 'warning')
+        else:
+            flash(f'❌ 导入失败：全部 {error_count} 条记录处理失败，请检查数据格式', 'danger')
         
     except Exception as e:
         conn.rollback()
