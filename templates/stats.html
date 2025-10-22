@@ -12,28 +12,42 @@
                         <th>项目金额</th>
                         <th>支出总额</th>
                         <th>备注</th>
-                        <th>操作</th>
+                        <th style="width: 100px;">操作</th>
                     </tr>
                 </thead>
                 <tbody>
+                    <!-- 先显示项目id为None的无项目支出 -->
                     {% for item in stats %}
-                    <tr>
-                        <td><small>({{ item.id }})</small>{{ item.name }}</td>
-                        <td>{{ "¥%.2f"|format(item.project_amount) }}</td>
-                        <td>{{ "¥%.2f"|format(item.total_expense or 0) }}</td>
-                        <td>{{ item.note }}</td>
-                        <td>
-                            {% if item.id %}
-                            <a href="{{ url_for('stats.expenses', project_id=item.id) }}" class="btn btn-sm btn-primary">
-                                查看明细
-                            </a>
-                            {% else %}
-                            <a href="{{ url_for('stats.orphan_expenses') }}" class="btn btn-sm btn-primary">
-                                查看明细
-                            </a>
-                            {% endif %}
-                        </td>
-                    </tr>
+                        {% if not item.id %}
+                        <tr>
+                            <td><small>({{ item.id }})</small>{{ item.name }}</td>
+                            <td>{{ "¥%.2f"|format(item.project_amount) }}</td>
+                            <td>{{ "¥%.2f"|format(item.total_expense or 0) }}</td>
+                            <td>{{ item.note }}</td>
+                            <td>
+                                <a href="{{ url_for('stats.orphan_expenses') }}" class="btn btn-sm btn-primary">
+                                    查看明细
+                                </a>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <!-- 再显示其他正常项目 -->
+                    {% for item in stats %}
+                        {% if item.id %}
+                        <tr>
+                            <td><small>({{ item.id }})</small>{{ item.name }}</td>
+                            <td>{{ "¥%.2f"|format(item.project_amount) }}</td>
+                            <td>{{ "¥%.2f"|format(item.total_expense or 0) }}</td>
+                            <td>{{ item.note }}</td>
+                            <td>
+                                <a href="{{ url_for('stats.expenses', project_id=item.id) }}" class="btn btn-sm btn-primary">
+                                    查看明细
+                                </a>
+                            </td>
+                        </tr>
+                        {% endif %}
                     {% endfor %}
                 </tbody>
             </table>

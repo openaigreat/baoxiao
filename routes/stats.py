@@ -42,14 +42,17 @@ def stats():
         WHERE project_id IS NULL
     ''').fetchone()['total_expense'] or 0
     
-    # 合并统计结果
-    stats = list(project_stats)
+    # 初始化统计结果列表
+    stats = []
     
-    # 如果有无项目支出，将其添加到统计结果中
+    # 如果有无项目支出，将其添加到统计结果的最前面
     if orphan_total > 0:
         # 使用字典模拟Row对象来显示无项目支出
         orphan_record = {'id': None, 'name': '无项目支出', 'project_amount': 0, 'total_expense': orphan_total, 'note': ''}
         stats.append(orphan_record)
+    
+    # 添加正常项目统计
+    stats.extend(project_stats)
     
     conn.close()
     return render_template('stats.html', stats=stats)

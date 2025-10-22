@@ -8,11 +8,11 @@
         <div class="mb-3 d-flex justify-content-between align-items-center">
             <div></div>
             <div>
-                <button id="add-project-btn" class="btn btn-success btn-sm me-2">
-                    添加项目
-                </button>
-                <button id="batch-assign-btn" class="btn btn-primary btn-sm" disabled>
+                <button id="batch-assign-btn" class="btn btn-primary btn-sm me-2" disabled>
                     归属项目
+                </button>
+                <button id="add-project-btn" class="btn btn-success btn-sm">
+                    添加项目
                 </button>
             </div>
         </div>
@@ -21,14 +21,14 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>日期</th>
+                        <th style="width: 150px;">日期</th>
                         <th>用途</th>
-                        <th>金额</th>
                         <th>
                             <input type="checkbox" id="select-all" class="form-check-input">
                         </th>
+                        <th>金额</th>
                         <th>备注</th>
-                        <th>操作</th>
+                        <th style="width: 100px;">操作</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -36,10 +36,10 @@
                     <tr>
                         <td>{{ expense.date }}</td>
                         <td>{{ expense.purpose }}</td>
-                        <td>{{ "¥%.2f"|format(expense.amount) }}</td>
                         <td>
                             <input type="checkbox" class="expense-checkbox form-check-input" value="{{ expense.id }}">
                         </td>
+                        <td>{{ "¥%.2f"|format(expense.amount) }}</td>
                         <td>{{ expense.note }}</td>
                         <td>
                             <a href="{{ url_for('stats.edit_expense', expense_id=expense.id) }}" class="btn btn-sm btn-warning">
