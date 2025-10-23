@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, abort, jsonify, g
+from flask import Blueprint, render_template, request, redirect, url_for, session, abort, jsonify, g, flash
 import sqlite3
 import logging
 from models import get_db
+from datetime import datetime
 
 bp = Blueprint('stats', __name__)
 
@@ -65,6 +66,19 @@ def expenses(project_id):
         session['user_id'] = 1
         session['username'] = '默认用户'
     
+    # 获取排序参数
+    sort_by = request.args.get('sort_by', 'category')  # 默认按类别排序
+    sort_order = request.args.get('sort_order', 'asc')  # 默认正序
+    
+    # 验证排序字段
+    valid_sort_fields = ['category', 'date', 'purpose', 'amount', 'note']
+    if sort_by not in valid_sort_fields:
+        sort_by = 'category'
+    
+    # 验证排序顺序
+    if sort_order not in ['asc', 'desc']:
+        sort_order = 'asc'
+    
     conn = get_db()
     project = conn.execute('''
         SELECT id, name
@@ -72,11 +86,12 @@ def expenses(project_id):
         WHERE id = ?
     ''', (project_id,)).fetchone()
     
-    query = '''
+    # 构建带排序的SQL查询
+    query = f'''
         SELECT e.* 
         FROM expenses e
         WHERE e.project_id = ?
-        ORDER BY e.date ASC
+        ORDER BY e.{sort_by} {sort_order}
     '''
     params = (project_id,)
     
@@ -91,12 +106,184 @@ def expenses(project_id):
     
     total_amount = sum(expense['amount'] for expense in expenses)  # 使用字典访问方式
     
-    conn.close()
-    
     if not project:
+        conn.close()
         return redirect(url_for('index'))
     
-    return render_template('expenses.html', expenses=expenses, project=project, total_amount=total_amount, projects=projects)
+    # 计算下一次点击的排序顺序
+    next_sort_order = 'desc' if sort_order == 'asc' else 'asc'
+    
+    conn.close()
+    return render_template('expenses.html', 
+                           expenses=expenses, 
+                           project=project, 
+                           total_amount=total_amount, 
+                           projects=projects,
+                           current_sort=sort_by,
+                           current_order=sort_order,
+                           next_sort_order=next_sort_order)
+
+@bp.route('/category_stats')
+def category_stats():
+    # 无需登录验证
+    # 为了兼容性，设置一个默认用户信息
+    if 'user_id' not in session:
+        session['user_id'] = 1
+        session['username'] = '默认用户'
+    
+    # 获取排序参数
+    sort_by = request.args.get('sort_by', 'total_amount')  # 默认按总金额排序
+    sort_order = request.args.get('sort_order', 'desc')  # 默认降序
+    
+    # 验证排序字段
+    valid_sort_fields = ['category', 'count', 'total_amount']
+    if sort_by not in valid_sort_fields:
+        sort_by = 'total_amount'
+    
+    # 验证排序顺序
+    if sort_order not in ['asc', 'desc']:
+        sort_order = 'desc'
+    
+    conn = get_db()
+    
+    # 构建带排序的SQL查询
+    query = f'''
+        SELECT 
+            category,
+            COUNT(*) as count,
+            SUM(amount) as total_amount
+        FROM expenses
+        WHERE user_id = ?
+        GROUP BY category
+        ORDER BY {sort_by} {sort_order}
+    '''
+    
+    categories = conn.execute(query, (session['user_id'],)).fetchall()
+    
+    # 获取总费用
+    total_expenses = conn.execute('''
+        SELECT SUM(amount) as total
+        FROM expenses
+        WHERE user_id = ?
+    ''', (session['user_id'],)).fetchone()['total'] or 0
+    
+    # 计算下一次点击的排序顺序
+    next_sort_order = 'desc' if sort_order == 'asc' else 'asc'
+    
+    conn.close()
+    
+    return render_template('category_stats.html', 
+                         categories=categories, 
+                         total_expenses=total_expenses,
+                         current_sort=sort_by,
+                         current_order=sort_order,
+                         next_sort_order=next_sort_order)
+
+@bp.route('/category/<category_name>')
+def category_expenses(category_name):
+    # 无需登录验证
+    # 为了兼容性，设置一个默认用户信息
+    if 'user_id' not in session:
+        session['user_id'] = 1
+        session['username'] = '默认用户'
+    
+    # 获取排序参数
+    sort_by = request.args.get('sort_by', 'project_name')
+    sort_order = request.args.get('sort_order', 'asc')
+    
+    # 验证排序参数
+    valid_sort_fields = ['project_name', 'date', 'category', 'purpose', 'amount', 'note']
+    if sort_by not in valid_sort_fields:
+        sort_by = 'project_name'
+    
+    if sort_order not in ['asc', 'desc']:
+        sort_order = 'asc'
+    
+    conn = get_db()
+    
+    # 获取该类别的所有费用记录，支持动态排序
+    query = f'''
+        SELECT e.*, p.name as project_name
+        FROM expenses e
+        LEFT JOIN projects p ON e.project_id = p.id
+        WHERE e.user_id = ? AND e.category = ?
+        ORDER BY {sort_by} {sort_order}
+    '''
+    params = (session['user_id'], category_name)
+    
+    expenses = conn.execute(query, params).fetchall()
+    
+    # 获取总金额
+    total_amount = conn.execute('''
+        SELECT SUM(amount) as total
+        FROM expenses
+        WHERE user_id = ? AND category = ?
+    ''', (session['user_id'], category_name)).fetchone()['total'] or 0
+    
+    # 获取所有项目列表，用于批量修改
+    projects = conn.execute('''
+        SELECT id, name
+        FROM projects
+        ORDER BY name
+    ''').fetchall()
+    
+    conn.close()
+    
+    # 计算下一次点击的排序顺序
+    next_sort_order = 'desc' if sort_order == 'asc' else 'asc'
+    
+    conn.close()
+    
+    return render_template('category_expenses.html', 
+                         expenses=expenses, 
+                         category_name=category_name,
+                         total_amount=total_amount,
+                         projects=projects,
+                         current_sort=sort_by,
+                         current_order=sort_order,
+                         next_sort_order=next_sort_order)
+
+@bp.route('/batch_update_categories', methods=['POST'])
+def batch_update_categories():
+    # 无需登录验证
+    # 为了兼容性，设置一个默认用户信息
+    if 'user_id' not in session:
+        session['user_id'] = 1
+        session['username'] = '默认用户'
+    
+    # 尝试从隐藏字段获取逗号分隔的ID字符串
+    expense_ids_str = request.form.get('expense_ids_hidden')
+    if expense_ids_str:
+        expense_ids = expense_ids_str.split(',')
+    else:
+        # 兼容原有的获取方式
+        expense_ids = request.form.getlist('expense_ids')
+    
+    new_category = request.form.get('new_category')
+    category_name = request.form.get('category_name')
+    
+    if not expense_ids:
+        flash('请选择要修改的记录', 'warning')
+        return redirect(url_for('stats.category_expenses', category_name=category_name))
+    
+    conn = get_db()
+    try:
+        # 批量更新费用类别
+        placeholders = ','.join(['?' for _ in expense_ids])
+        conn.execute(f'''
+            UPDATE expenses
+            SET category = ?
+            WHERE id IN ({placeholders}) AND user_id = ?
+        ''', [new_category] + expense_ids + [session['user_id']])
+        conn.commit()
+        flash(f'成功更新 {len(expense_ids)} 条记录的费用类别', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'更新失败: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('stats.category_expenses', category_name=category_name))
 
 @bp.route('/orphan_expenses')
 def orphan_expenses():
@@ -106,13 +293,29 @@ def orphan_expenses():
         session['user_id'] = 1
         session['username'] = '默认用户'
     
+    # 获取排序参数
+    sort_by = request.args.get('sort_by', 'date')  # 默认按日期排序
+    sort_order = request.args.get('sort_order', 'asc')  # 默认正序
+    
+    # 验证排序字段
+    valid_sort_fields = ['date', 'purpose', 'category', 'amount', 'note']
+    if sort_by not in valid_sort_fields:
+        sort_by = 'date'
+    
+    # 验证排序顺序
+    if sort_order not in ['asc', 'desc']:
+        sort_order = 'asc'
+    
     conn = get_db()
     try:
-        orphan_expenses = conn.execute('''
+        # 构建带排序的SQL查询
+        query = f'''
             SELECT e.id, e.date, e.purpose, e.amount, e.note, e.user_id, e.category
             FROM expenses e
             WHERE e.project_id IS NULL OR e.project_id NOT IN (SELECT id FROM projects)
-        ''').fetchall()
+            ORDER BY e.{sort_by} {sort_order}
+        '''
+        orphan_expenses = conn.execute(query).fetchall()
         total_amount = sum(expense['amount'] for expense in orphan_expenses)  # 使用字典访问方式
         
         # 获取项目列表，用于归属项目选择
@@ -129,7 +332,16 @@ def orphan_expenses():
     finally:
         conn.close()
     
-    return render_template('orphan_expenses.html', expenses=orphan_expenses, total_amount=total_amount, projects=projects)
+    # 计算下一次点击的排序顺序
+    next_sort_order = 'desc' if sort_order == 'asc' else 'asc'
+    
+    return render_template('orphan_expenses.html', 
+                           expenses=orphan_expenses, 
+                           total_amount=total_amount, 
+                           projects=projects,
+                           current_sort=sort_by,
+                           current_order=sort_order,
+                           next_sort_order=next_sort_order)
 
 @bp.route('/batch_assign_project', methods=['POST'])
 def batch_assign_project():

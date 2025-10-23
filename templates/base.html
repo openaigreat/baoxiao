@@ -38,6 +38,10 @@
                 pageDescription = '修改密码';
             } else if (path.includes('/expenses/')) {
                 pageDescription = '支出明细';
+            } else if (path.includes('/category_stats')) {
+                pageDescription = '费用分类统计';
+            } else if (path.includes('/category/')) {
+                pageDescription = '分类明细';
             }
             
             // 直接设置整个标题
@@ -56,7 +60,8 @@
             <div class="navbar-nav">
                 <a class="nav-link" href="/add_project">输入项目</a>
                 <a class="nav-link" href="/add_expense">输入支出</a>
-                <a class="nav-link" href="/stats">查看修改</a>
+                <a class="nav-link" href="/stats">项目统计</a>
+                <a class="nav-link" href="/category_stats">费用分类</a>
             </div>
         </div>
     </nav>

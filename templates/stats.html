@@ -25,7 +25,7 @@
                             <td>{{ "¥%.2f"|format(item.total_expense or 0) }}</td>
                             <td>{{ item.note }}</td>
                             <td>
-                                <a href="{{ url_for('stats.orphan_expenses') }}" class="btn btn-sm btn-primary">
+                                <a href="{{ url_for('stats.orphan_expenses') }}" class="btn btn-sm btn-outline-primary">
                                     查看明细
                                 </a>
                             </td>
@@ -42,7 +42,7 @@
                             <td>{{ "¥%.2f"|format(item.total_expense or 0) }}</td>
                             <td>{{ item.note }}</td>
                             <td>
-                                <a href="{{ url_for('stats.expenses', project_id=item.id) }}" class="btn btn-sm btn-primary">
+                                <a href="{{ url_for('stats.expenses', project_id=item.id) }}" class="btn btn-sm btn-outline-primary">
                                     查看明细
                                 </a>
                             </td>
@@ -78,13 +78,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             container.innerHTML = '';
             data.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'mb-2';
-                div.innerHTML = `¥${item.total_amount.toFixed(2)}`;
-                div.addEventListener('click', () => {
+                const button = document.createElement('button');
+                button.className = 'btn btn-sm btn-primary mb-2';
+                button.innerHTML = `¥${item.total_amount.toFixed(2)}`;
+                button.addEventListener('click', () => {
                     window.location.href = '/orphan_expenses';
                 });
-                container.appendChild(div);
+                container.appendChild(button);
             });
         })
         .catch(error => {

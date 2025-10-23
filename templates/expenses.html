@@ -20,21 +20,66 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th style="width: 150px;">日期</th>
-                        <th>用途</th>
-                        <th>费用类别</th>
+                        <th style="cursor: pointer;">
+                            <a href="{{ url_for('stats.expenses', project_id=project.id, sort_by='category', sort_order=next_sort_order if current_sort == 'category' else 'asc') }}">
+                                费用类别
+                                {% if current_sort == 'category' %}
+                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="bi bi-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th style="width: 150px; cursor: pointer;">
+                            <a href="{{ url_for('stats.expenses', project_id=project.id, sort_by='date', sort_order=next_sort_order if current_sort == 'date' else 'asc') }}">
+                                日期
+                                {% if current_sort == 'date' %}
+                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="bi bi-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th style="cursor: pointer;">
+                            <a href="{{ url_for('stats.expenses', project_id=project.id, sort_by='purpose', sort_order=next_sort_order if current_sort == 'purpose' else 'asc') }}">
+                                用途
+                                {% if current_sort == 'purpose' %}
+                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="bi bi-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
                         <th><input type="checkbox" id="select-all"></th>
-                        <th>金额</th>
-                        <th>备注</th>
+                        <th style="cursor: pointer;">
+                            <a href="{{ url_for('stats.expenses', project_id=project.id, sort_by='amount', sort_order=next_sort_order if current_sort == 'amount' else 'asc') }}">
+                                金额
+                                {% if current_sort == 'amount' %}
+                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="bi bi-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th style="cursor: pointer;">
+                            <a href="{{ url_for('stats.expenses', project_id=project.id, sort_by='note', sort_order=next_sort_order if current_sort == 'note' else 'asc') }}">
+                                备注
+                                {% if current_sort == 'note' %}
+                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="bi bi-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
                         <th style="width: 100px;">操作</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for expense in expenses %}
                     <tr>
+                        <td>{{ expense.category or '未分类' }}</td>
                         <td>{{ expense.date }}</td>
                         <td>{{ expense.purpose }}</td>
-                        <td>{{ expense.category or '未分类' }}</td>
                         <td><input type="checkbox" class="expense-checkbox" value="{{ expense.id }}"></td>
                         <td>{{ "¥%.2f"|format(expense.amount) }}</td>
                         <td>{{ expense.note }}</td>
@@ -46,10 +91,7 @@
                     </tr>
                     {% endfor %}
                     <tr>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
+                        <td colspan="4"></td>
                         <td><strong>总计: ¥{{ total_amount }}</strong></td>
                         <td colspan="2"></td>
                     </tr>

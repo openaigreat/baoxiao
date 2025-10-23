@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .smaller-text {
+        font-size: 0.6em; /* 调整为你需要的大小 */
+    }
+</style>
+<form method="POST" id="batch-form" action="{{ url_for('stats.batch_update_categories') }}">
+<div class="card shadow">
+    <div class="card-body">
+        <h2 class="card-title mb-4">分类明细 <small class="smaller-text">({{ category_name }}) - {{ expenses|length }}</small>
+            <button id="batch-update-btn" class="btn btn-sm btn-primary float-end me-2" disabled>
+                批量更改类别
+            </button>
+            <div class="btn-group btn-group-sm float-end me-2">
+                <input type="radio" name="new_category" id="new-category-food" value="餐费" class="btn-check" required>
+                <label for="new-category-food" class="btn btn-outline-secondary">餐费</label>
+                
+                <input type="radio" name="new_category" id="new-category-transport" value="交通" class="btn-check">
+                <label for="new-category-transport" class="btn btn-outline-secondary">交通</label>
+                
+                <input type="radio" name="new_category" id="new-category-material" value="材料" class="btn-check">
+                <label for="new-category-material" class="btn btn-outline-secondary">材料</label>
+                
+                <input type="radio" name="new_category" id="new-category-accommodation" value="住宿" class="btn-check">
+                <label for="new-category-accommodation" class="btn btn-outline-secondary">住宿</label>
+                
+                <input type="radio" name="new_category" id="new-category-manual" value="人工" class="btn-check">
+                <label for="new-category-manual" class="btn btn-outline-secondary">人工</label>
+                
+                <input type="radio" name="new_category" id="new-category-other" value="其他" class="btn-check">
+                <label for="new-category-other" class="btn btn-outline-secondary">其他</label>
+            </div>
+            <input type="hidden" name="category_name" value="{{ category_name }}">
+            <input type="hidden" id="selected-expense-ids" name="expense_ids_hidden">
+        </h2>
+        
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th style="width: 150px;">
+                            <a href="{{ url_for('stats.category_expenses', category_name=category_name, sort_by='project_name', sort_order=(next_sort_order if current_sort == 'project_name' else 'asc')) }}">
+                                项目
+                                {% if current_sort == 'project_name' %}
+                                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                <i class="bi bi-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th style="width: 120px;">
+                            <a href="{{ url_for('stats.category_expenses', category_name=category_name, sort_by='date', sort_order=(next_sort_order if current_sort == 'date' else 'asc')) }}">
+                                日期
+                                {% if current_sort == 'date' %}
+                                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                <i class="bi bi-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('stats.category_expenses', category_name=category_name, sort_by='category', sort_order=(next_sort_order if current_sort == 'category' else 'asc')) }}">
+                                类别
+                                {% if current_sort == 'category' %}
+                                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                <i class="bi bi-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('stats.category_expenses', category_name=category_name, sort_by='purpose', sort_order=(next_sort_order if current_sort == 'purpose' else 'asc')) }}">
+                                用途
+                                {% if current_sort == 'purpose' %}
+                                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                <i class="bi bi-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th><input type="checkbox" id="select-all" class="form-check-input"></th>
+                        <th>
+                            <a href="{{ url_for('stats.category_expenses', category_name=category_name, sort_by='amount', sort_order=(next_sort_order if current_sort == 'amount' else 'asc')) }}">
+                                金额
+                                {% if current_sort == 'amount' %}
+                                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                <i class="bi bi-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('stats.category_expenses', category_name=category_name, sort_by='note', sort_order=(next_sort_order if current_sort == 'note' else 'asc')) }}">
+                                备注
+                                {% if current_sort == 'note' %}
+                                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                <i class="bi bi-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th style="width: 100px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in expenses %}
+                    <tr>
+                        <td>
+                            {% if expense.project_name %}
+                            <a href="{{ url_for('stats.expenses', project_id=expense.project_id) }}">
+                                {{ expense.project_name }}
+                            </a>
+                            {% else %}
+                            <span class="text-muted">未分配</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ expense.date }}</td>
+                        <td>{{ expense.category or '未分类' }}</td>
+                        <td>{{ expense.purpose }}</td>
+                        <td>
+                            <input type="checkbox" name="expense_ids" value="{{ expense.id }}" class="expense-checkbox form-check-input">
+                        </td>
+                        <td>{{ "¥%.2f"|format(expense.amount) }}</td>
+                        <td>{{ expense.note or '-' }}</td>
+                        <td>
+                            <a href="{{ url_for('expenses.edit_expense', expense_id=expense.id) }}" class="btn btn-sm btn-warning">
+                                编辑
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">暂无费用记录</td>
+                    </tr>
+                    {% endfor %}
+                    <tr>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td><strong>总计: ¥{{ "%.2f"|format(total_amount) }}</strong></td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</form>
+
+<script>
+    // 全选/取消全选功能
+    document.getElementById('select-all').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.expense-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateBatchButton();
+    });
+    
+    // 行点击选中/取消选中
+    document.querySelectorAll('tbody tr').forEach(row => {
+        row.addEventListener('click', function(e) {
+            // 如果点击的是复选框或按钮，不触发行点击事件
+            if (e.target.type === 'checkbox' || e.target.tagName === 'BUTTON' || e.target.closest('a')) {
+                return;
+            }
+            const checkbox = this.querySelector('.expense-checkbox');
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                updateBatchButton();
+                updateHeaderCheckbox();
+            }
+        });
+    });
+    
+    // 复选框变化时更新批量按钮状态
+    document.querySelectorAll('.expense-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateBatchButton();
+            updateHeaderCheckbox();
+        });
+    });
+    
+    // 更新批量按钮状态
+    function updateBatchButton() {
+        const checkedBoxes = document.querySelectorAll('.expense-checkbox:checked');
+        const selectedCategory = document.querySelector('input[name="new_category"]:checked');
+        const batchButton = document.getElementById('batch-update-btn');
+        batchButton.disabled = checkedBoxes.length === 0 || !selectedCategory;
+    }
+    
+    // 更新表头复选框状态
+    function updateHeaderCheckbox() {
+        const checkboxes = document.querySelectorAll('.expense-checkbox');
+        const checkedBoxes = document.querySelectorAll('.expense-checkbox:checked');
+        document.getElementById('select-all').checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
+    }
+    
+    // 监听类别选择变化
+    document.querySelectorAll('input[name="new_category"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            updateBatchButton();
+        });
+    });
+    
+    // 批量更新按钮点击
+    document.getElementById('batch-update-btn').addEventListener('click', function() {
+        const checkedBoxes = document.querySelectorAll('.expense-checkbox:checked');
+        if (checkedBoxes.length === 0) {
+            alert('请至少选择一条记录');
+            return;
+        }
+        const selectedCategory = document.querySelector('input[name="new_category"]:checked');
+        if (!selectedCategory) {
+            alert('请选择新类别');
+            return;
+        }
+        
+        // 将选中的ID存储到隐藏字段中
+        const selectedIds = Array.from(checkedBoxes).map(checkbox => checkbox.value);
+        document.getElementById('selected-expense-ids').value = selectedIds.join(',');
+        
+        // 提交表单
+        document.getElementById('batch-form').submit();
+    });
+</script>
+{% endblock %}

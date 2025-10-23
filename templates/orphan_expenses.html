@@ -20,12 +20,57 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th style="width: 150px;">日期</th>
-                        <th>用途</th>
-                        <th>费用类别</th>
+                        <th style="width: 150px; cursor: pointer;">
+                            <a href="{{ url_for('stats.orphan_expenses', sort_by='date', sort_order=next_sort_order if current_sort == 'date' else 'asc') }}">
+                                日期
+                                {% if current_sort == 'date' %}
+                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="bi bi-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th style="cursor: pointer;">
+                            <a href="{{ url_for('stats.orphan_expenses', sort_by='purpose', sort_order=next_sort_order if current_sort == 'purpose' else 'asc') }}">
+                                用途
+                                {% if current_sort == 'purpose' %}
+                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="bi bi-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th style="cursor: pointer;">
+                            <a href="{{ url_for('stats.orphan_expenses', sort_by='category', sort_order=next_sort_order if current_sort == 'category' else 'asc') }}">
+                                费用类别
+                                {% if current_sort == 'category' %}
+                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="bi bi-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
                         <th><input type="checkbox" id="select-all" class="form-check-input"></th>
-                        <th>金额</th>
-                        <th>备注</th>
+                        <th style="cursor: pointer;">
+                            <a href="{{ url_for('stats.orphan_expenses', sort_by='amount', sort_order=next_sort_order if current_sort == 'amount' else 'asc') }}">
+                                金额
+                                {% if current_sort == 'amount' %}
+                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="bi bi-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th style="cursor: pointer;">
+                            <a href="{{ url_for('stats.orphan_expenses', sort_by='note', sort_order=next_sort_order if current_sort == 'note' else 'asc') }}">
+                                备注
+                                {% if current_sort == 'note' %}
+                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="bi bi-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
                         <th style="width: 100px;">操作</th>
                     </tr>
                 </thead>

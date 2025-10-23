@@ -11,13 +11,14 @@ def add_project():
     
     if request.method == 'POST':
         name = request.form['name']
+        amount = float(request.form.get('amount', 0.0))
         note = request.form.get('note', '')
         
         try:
             db = get_db()
             db.execute(
                 'INSERT INTO projects (name, amount, note) VALUES (?, ?, ?)',
-                (name, 0.0, note)
+                (name, amount, note)
             )
             db.commit()
             
