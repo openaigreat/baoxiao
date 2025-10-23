@@ -84,9 +84,11 @@
                         <td>{{ "¥%.2f"|format(expense.amount) }}</td>
                         <td>{{ expense.note }}</td>
                         <td>
-                            <a href="{{ url_for('stats.edit_expense', expense_id=expense.id) }}" class="btn btn-sm btn-warning">
-                                编辑
-                            </a>
+                            <div class="action-buttons">
+                                <a href="{{ url_for('stats.edit_expense', expense_id=expense.id) }}" class="btn btn-sm btn-warning">
+                                    编辑
+                                </a>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}

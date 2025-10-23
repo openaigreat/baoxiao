@@ -11,6 +11,7 @@
                         <th>项目信息</th>
                         <th>项目金额</th>
                         <th>支出总额</th>
+                        <th>毛利润</th>
                         <th>备注</th>
                         <th style="width: 100px;">操作</th>
                     </tr>
@@ -23,6 +24,7 @@
                             <td><small>({{ item.id }})</small>{{ item.name }}</td>
                             <td>{{ "¥%.2f"|format(item.project_amount) }}</td>
                             <td>{{ "¥%.2f"|format(item.total_expense or 0) }}</td>
+                            <td>{{ "¥%.2f"|format(item.project_amount - (item.total_expense or 0)) }}</td>
                             <td>{{ item.note }}</td>
                             <td>
                                 <a href="{{ url_for('stats.orphan_expenses') }}" class="btn btn-sm btn-outline-primary">
@@ -40,6 +42,7 @@
                             <td><small>({{ item.id }})</small>{{ item.name }}</td>
                             <td>{{ "¥%.2f"|format(item.project_amount) }}</td>
                             <td>{{ "¥%.2f"|format(item.total_expense or 0) }}</td>
+                            <td>{{ "¥%.2f"|format(item.project_amount - (item.total_expense or 0)) }}</td>
                             <td>{{ item.note }}</td>
                             <td>
                                 <a href="{{ url_for('stats.expenses', project_id=item.id) }}" class="btn btn-sm btn-outline-primary">
@@ -50,6 +53,15 @@
                         {% endif %}
                     {% endfor %}
                 </tbody>
+                <tfoot>
+                    <tr class="bg-light font-weight-bold">
+                        <td>总计</td>
+                        <td>{{ "¥%.2f"|format(stats|sum(attribute='project_amount', start=0)) }}</td>
+                        <td>{{ "¥%.2f"|format(stats|sum(attribute='total_expense', start=0)) }}</td>
+                        <td>{{ "¥%.2f"|format(stats|sum(attribute='project_amount', start=0) - stats|sum(attribute='total_expense', start=0)) }}</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
         <div id="orphan-expenses-total" class="mt-4">

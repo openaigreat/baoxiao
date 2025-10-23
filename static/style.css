@@ -5,6 +5,46 @@
     }
     .table-responsive {
         font-size: 14px;
+        overflow-x: auto;
+    }
+    /* 表格单元格适应小屏幕 */
+    table th, table td {
+        padding: 8px 4px;
+        font-size: 14px;
+    }
+    /* 确保按钮在移动端更易于点击 */
+    .btn {
+        padding: 10px 15px;
+        font-size: 14px;
+        min-height: 44px; /* 满足触摸目标大小要求 */
+    }
+    /* 表单元素适配移动端 */
+    .form-control, .form-select {
+        padding: 10px;
+        font-size: 16px;
+        min-height: 44px;
+    }
+    /* 调整导航栏间距 */
+    .navbar-nav .nav-link {
+        padding: 12px 10px;
+    }
+    /* 调整卡片样式 */
+    .card {
+        margin-bottom: 15px;
+        font-size: 14px;
+    }
+    /* 调整统计页面样式 */
+    .row > div {
+        margin-bottom: 15px;
+    }
+    /* 隐藏小屏幕上不必要的内容 */
+    .hide-mobile {
+        display: none;
+    }
+    /* 优化复选框大小 */
+    .form-check-input {
+        width: 18px;
+        height: 18px;
     }
 }
 
@@ -21,4 +61,40 @@
 }
 .btn {
     transition: all 0.2s;
+}
+/* 确保表格在所有设备上都有响应式包装 */
+.table-responsive {
+    width: 100%;
+    margin-bottom: 1rem;
+    overflow-x: auto;
+}
+/* 确保链接在移动端更易点击 */
+a {
+    display: inline-block;
+    padding: 2px 0;
+}
+/* 优化按钮组在移动端的显示 */
+.btn-group {
+    width: 100%;
+}
+.btn-group .btn {
+    flex: 1;
+}
+/* 确保输入框在小屏幕上有足够宽度 */
+input[type="text"],
+input[type="number"],
+input[type="date"],
+select,
+textarea {
+    width: 100%;
+}
+/* 优化表格行操作按钮组 */
+.action-buttons {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+/* 调整移动端的间距 */
+.mt-4, .my-4 {
+    margin-top: 1.5rem !important;
 }

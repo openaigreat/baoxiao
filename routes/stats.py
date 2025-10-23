@@ -52,8 +52,13 @@ def stats():
         orphan_record = {'id': None, 'name': '无项目支出', 'project_amount': 0, 'total_expense': orphan_total, 'note': ''}
         stats.append(orphan_record)
     
-    # 添加正常项目统计
-    stats.extend(project_stats)
+    # 添加正常项目统计，并处理None值
+    for project in project_stats:
+        # 转换Row对象为字典，并处理None值
+        project_dict = dict(project)
+        project_dict['project_amount'] = project_dict.get('project_amount', 0) or 0
+        project_dict['total_expense'] = project_dict.get('total_expense', 0) or 0
+        stats.append(project_dict)
     
     conn.close()
     return render_template('stats.html', stats=stats)
