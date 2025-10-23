@@ -25,9 +25,9 @@ def add_project():
                 # AJAX请求返回JSON
                 return jsonify({"success": True})
             else:
-                # 常规请求重定向
+                # 重定向到stats页面
                 flash('项目添加成功')
-                return redirect(url_for('stats.orphan_expenses'))
+                return redirect(url_for('stats.stats'))
         except Exception as e:
             if is_ajax:
                 # AJAX请求返回错误
@@ -35,7 +35,7 @@ def add_project():
             else:
                 # 常规请求显示错误
                 flash('添加项目失败: ' + str(e))
-                return redirect(url_for('stats.orphan_expenses'))
+                return redirect(url_for('projects.add_project'))
     
     # GET请求
     if is_ajax:

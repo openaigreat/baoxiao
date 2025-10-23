@@ -10,47 +10,27 @@ if os.path.exists(db_path):
     cursor = conn.cursor()
     
     try:
-        # 先查看表结构
-        print("查看表结构...")
-        cursor.execute("PRAGMA table_info(projects)")
+        # 检查expenses表是否缺少category列
+        print("检查expenses表结构...")
+        cursor.execute("PRAGMA table_info(expenses)")
         columns = cursor.fetchall()
-        print("当前表结构:")
-        for col in columns:
-            print(f"  {col[1]} ({col[2]})")
+        column_names = [col[1] for col in columns]
         
-        # 创建一个新的表结构，不包含year字段
-        print("创建临时表...")
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS projects_new (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                amount REAL NOT NULL,
-                note TEXT
-            )
-        ''')
+        print("当前expenses表列名:")
+        for col in column_names:
+            print(f"  - {col}")
         
-        # 复制数据到新表，只复制存在的字段
-        print("复制数据到新表...")
-        cursor.execute('''
-            INSERT INTO projects_new (id, name, amount, note)
-            SELECT id, name, amount, note FROM projects
-        ''')
-        
-        # 删除旧表
-        print("删除旧表...")
-        cursor.execute('DROP TABLE IF EXISTS projects')
-        
-        # 重命名新表
-        print("重命名新表...")
-        cursor.execute('ALTER TABLE projects_new RENAME TO projects')
-        
-        # 创建必要的索引
-        print("重建索引...")
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_projects_id ON projects (id)')
+        # 如果缺少category列，则添加它
+        if 'category' not in column_names:
+            print("添加category列到expenses表...")
+            cursor.execute('ALTER TABLE expenses ADD COLUMN category TEXT')
+            print("category列添加成功！")
+        else:
+            print("category列已存在，无需添加。")
         
         # 提交更改
         conn.commit()
-        print("数据库修改成功！已移除projects表中的year字段。")
+        print("数据库修改完成！")
         
     except sqlite3.Error as e:
         print(f"数据库错误: {e}")

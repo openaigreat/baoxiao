@@ -1,31 +1,29 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+    .smaller-text {
+        font-size: 0.6em; /* 调整为你需要的大小 */
+    }
+</style>
 <div class="card shadow">
     <div class="card-body">
-        <h2 class="card-title mb-4">孤立支出明细</h2>
-        
-        <div class="mb-3 d-flex justify-content-between align-items-center">
-            <div></div>
-            <div>
-                <button id="batch-assign-btn" class="btn btn-primary btn-sm me-2" disabled>
-                    归属项目
-                </button>
-                <button id="add-project-btn" class="btn btn-success btn-sm">
-                    添加项目
-                </button>
-            </div>
-        </div>
-        
+        <h2 class="card-title mb-4">孤立支出明细 
+        <button id="batch-assign-btn" class="btn btn-sm btn-primary float-end me-2" disabled>
+            归属项目
+        </button>
+        <button id="add-project-btn" class="btn btn-sm btn-success float-end me-2">
+            添加项目
+        </button>
+        </h2>
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
                     <tr>
                         <th style="width: 150px;">日期</th>
                         <th>用途</th>
-                        <th>
-                            <input type="checkbox" id="select-all" class="form-check-input">
-                        </th>
+                        <th>费用类别</th>
+                        <th><input type="checkbox" id="select-all" class="form-check-input"></th>
                         <th>金额</th>
                         <th>备注</th>
                         <th style="width: 100px;">操作</th>
@@ -36,9 +34,8 @@
                     <tr>
                         <td>{{ expense.date }}</td>
                         <td>{{ expense.purpose }}</td>
-                        <td>
-                            <input type="checkbox" class="expense-checkbox form-check-input" value="{{ expense.id }}">
-                        </td>
+                        <td>{{ expense.category or '未分类' }}</td>
+                        <td><input type="checkbox" class="expense-checkbox form-check-input" value="{{ expense.id }}"></td>
                         <td>{{ "¥%.2f"|format(expense.amount) }}</td>
                         <td>{{ expense.note }}</td>
                         <td>
@@ -48,12 +45,16 @@
                         </td>
                     </tr>
                     {% endfor %}
-                    
+                    <tr>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td><strong>总计: ¥{{ "%.2f"|format(total_amount) }}</strong></td>
+                        <td colspan="2"></td>
+                    </tr>
                 </tbody>
             </table>
-        </div>
-        <div class="mt-4">
-            <h5>总的孤立支出: ¥{{ total_amount|round(2) }}</h5>
         </div>
     </div>
 </div>
@@ -94,37 +95,40 @@
                 <h5 class="modal-title" id="projectModalLabel">选择归属项目</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="project-assign-form">
-                <div class="modal-body">
-                    <input type="hidden" id="selected-expenses" name="expense_ids">
+            <div class="modal-body">
+                <!-- 使用实际的表单标签，而不是只有ID -->
+                <form id="project-assign-form" method="POST" action="/batch_assign_project">
+                    <input type="hidden" id="selected-expense-ids" name="expense_ids">
                     <div class="mb-3">
-                        <label for="project-select" class="form-label">选择项目</label>
-                        <select id="project-select" name="project_id" class="form-control" required>
+                        <label for="project_id" class="form-label">选择项目</label>
+                        <select class="form-select" id="project_id" name="project_id" required>
                             <option value="">请选择项目</option>
-                            {% for project in projects %}
-                            <option value="{{ project.id }}">{{ project.name }}</option>
+                            {% for p in projects %}
+                            <option value="{{ p.id }}">{{ p.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="text-end">
-                        <button id="open-add-project-modal" class="text-primary text-sm bg-transparent border-none p-0" style="cursor: pointer; text-decoration: underline; text-decoration-thickness: from-font;">添加新项目</button>
+                        <button id="open-add-project-modal" type="button" class="text-primary text-sm bg-transparent border-none p-0" style="cursor: pointer; text-decoration: underline; text-decoration-thickness: from-font;">添加新项目</button>
                     </div>
-                </div>
-                <div class="modal-footer justify-content-between">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-primary">确定归属</button>
-                </div>
-            </form>
+                    <div id="debugInfo" style="margin-top: 10px; font-size: 12px; color: #666;"></div>
+                </form>
+            </div>
+            <div class="modal-footer justify-content-between">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="submit" form="project-assign-form" class="btn btn-primary">确认分配</button>
+            </div>
         </div>
     </div>
 </div>
+
 
 <script>
 // 复选框全选/取消全选
 const selectAllCheckbox = document.getElementById('select-all');
 const expenseCheckboxes = document.querySelectorAll('.expense-checkbox');
 const batchAssignBtn = document.getElementById('batch-assign-btn');
-const selectedExpensesInput = document.getElementById('selected-expenses');
+const selectedExpensesInput = document.getElementById('selected-expense-ids');
 
 selectAllCheckbox.addEventListener('change', function() {
     expenseCheckboxes.forEach(checkbox => {
@@ -275,7 +279,9 @@ document.getElementById('open-add-project-modal').addEventListener('click', func
 batchAssignBtn.addEventListener('click', function() {
     const checkedExpenses = Array.from(document.querySelectorAll('.expense-checkbox:checked'))
         .map(checkbox => checkbox.value);
-    selectedExpensesInput.value = checkedExpenses.join(',');
+    if (selectedExpensesInput) {
+        selectedExpensesInput.value = checkedExpenses.join(',');
+    }
     const projectModal = new bootstrap.Modal(document.getElementById('projectModal'));
     projectModal.show();
 });

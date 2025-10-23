@@ -22,6 +22,7 @@
                     <tr>
                         <th style="width: 150px;">日期</th>
                         <th>用途</th>
+                        <th>费用类别</th>
                         <th><input type="checkbox" id="select-all"></th>
                         <th>金额</th>
                         <th>备注</th>
@@ -33,6 +34,7 @@
                     <tr>
                         <td>{{ expense.date }}</td>
                         <td>{{ expense.purpose }}</td>
+                        <td>{{ expense.category or '未分类' }}</td>
                         <td><input type="checkbox" class="expense-checkbox" value="{{ expense.id }}"></td>
                         <td>{{ "¥%.2f"|format(expense.amount) }}</td>
                         <td>{{ expense.note }}</td>
@@ -44,6 +46,7 @@
                     </tr>
                     {% endfor %}
                     <tr>
+                        <td></td>
                         <td></td>
                         <td></td>
                         <td></td>

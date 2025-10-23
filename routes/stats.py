@@ -109,7 +109,7 @@ def orphan_expenses():
     conn = get_db()
     try:
         orphan_expenses = conn.execute('''
-            SELECT e.id, e.date, e.purpose, e.amount, e.note, e.user_id
+            SELECT e.id, e.date, e.purpose, e.amount, e.note, e.user_id, e.category
             FROM expenses e
             WHERE e.project_id IS NULL OR e.project_id NOT IN (SELECT id FROM projects)
         ''').fetchall()
@@ -225,9 +225,9 @@ def edit_expense(expense_id):
         
         conn.execute('''
             UPDATE expenses
-            SET date = ?, project_id = ?, purpose = ?, amount = ?, note = ?
+            SET date = ?, project_id = ?, purpose = ?, amount = ?, note = ?, category = ?
             WHERE id = ?
-        ''', (date, project_id, purpose, amount, note, expense_id))
+        ''', (date, project_id, purpose, amount, note, request.form['category'], expense_id))
         conn.commit()
         conn.close()
         return redirect(url_for('stats.stats'))

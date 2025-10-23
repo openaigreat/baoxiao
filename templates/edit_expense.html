@@ -36,6 +36,47 @@
                        value="{{ expense.purpose }}" required>
             </div>
             <div class="mb-3">
+                <label class="form-label">费用类别</label>
+                <div class="row">
+                    <div class="col-4 col-sm-3 col-md-2 mb-2">
+                        <div class="form-check">
+                            <input type="radio" name="category" id="category-food" value="餐费" class="form-check-input" {% if expense.category == '餐费' %}checked{% endif %}>
+                            <label for="category-food" class="form-check-label">餐费</label>
+                        </div>
+                    </div>
+                    <div class="col-4 col-sm-3 col-md-2 mb-2">
+                        <div class="form-check">
+                            <input type="radio" name="category" id="category-transport" value="交通" class="form-check-input" {% if expense.category == '交通' %}checked{% endif %}>
+                            <label for="category-transport" class="form-check-label">交通</label>
+                        </div>
+                    </div>
+                    <div class="col-4 col-sm-3 col-md-2 mb-2">
+                        <div class="form-check">
+                            <input type="radio" name="category" id="category-material" value="材料" class="form-check-input" {% if expense.category == '材料' %}checked{% endif %}>
+                            <label for="category-material" class="form-check-label">材料</label>
+                        </div>
+                    </div>
+                    <div class="col-4 col-sm-3 col-md-2 mb-2">
+                        <div class="form-check">
+                            <input type="radio" name="category" id="category-accommodation" value="住宿" class="form-check-input" {% if expense.category == '住宿' %}checked{% endif %}>
+                            <label for="category-accommodation" class="form-check-label">住宿</label>
+                        </div>
+                    </div>
+                    <div class="col-4 col-sm-3 col-md-2 mb-2">
+                        <div class="form-check">
+                            <input type="radio" name="category" id="category-manual" value="人工" class="form-check-input" required {% if expense.category == '人工' %}checked{% endif %}>
+                            <label for="category-manual" class="form-check-label">人工</label>
+                        </div>
+                    </div>
+                    <div class="col-4 col-sm-3 col-md-2 mb-2">
+                        <div class="form-check">
+                            <input type="radio" name="category" id="category-other" value="其他" class="form-check-input" {% if expense.category == '其他' %}checked{% endif %}>
+                            <label for="category-other" class="form-check-label">其他</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mb-3">
                 <label class="form-label">金额</label>
                 <input type="number" step="0.01" name="amount" class="form-control"
                        value="{{ expense.amount }}" required>

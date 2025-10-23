@@ -35,15 +35,16 @@ def add_expense():
             session['last_date'] = date
             
             conn.execute('''
-                INSERT INTO expenses (date, project_id, purpose, amount, note, user_id)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO expenses (date, project_id, purpose, amount, note, user_id, category)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', (
                 date,
                 project_id,
                 request.form['purpose'],
                 float(request.form['amount']),
                 request.form['note'],
-                1  # 使用固定值1，避免引用users表
+                1,  # 使用固定值1，避免引用users表
+                request.form['category']
             ))
             conn.commit()
             return redirect(url_for('stats.stats'))
@@ -188,17 +189,19 @@ def import_expense_final():
                     note = str(row[mapping['note_col']]) if not pd.isna(row[mapping['note_col']]) else ''
 
                 # === 插入数据库 ===
+                # 对于导入功能，暂时设置category为默认值
                 conn.execute('''
                     INSERT INTO expenses 
-                    (date, project_id, purpose, amount, note, user_id)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    (date, project_id, purpose, amount, note, user_id, category)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     date,
                     project_id,
                     purpose,
                     amount,
                     note,
-                    session['user_id']  # 自动关联当前用户
+                    session['user_id'],  # 自动关联当前用户
+                    '其他'  # 导入时默认类别
                 ))
                 success_count += 1
                 
@@ -262,7 +265,8 @@ def edit_expense(expense_id):
                     project_id = ?,
                     purpose = ?,
                     amount = ?,
-                    note = ?
+                    note = ?,
+                    category = ?
                 WHERE id = ?
             ''', (
                 request.form['date'],
@@ -270,6 +274,7 @@ def edit_expense(expense_id):
                 request.form['purpose'],
                 float(request.form['amount']),
                 request.form['note'],
+                request.form['category'],
                 expense_id
             ))
             conn.commit()
