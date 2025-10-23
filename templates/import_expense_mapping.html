@@ -27,9 +27,19 @@
             </div>
             
             <div class="mb-3">
-                <label for="purpose_col">用途:</label>
+                <label for="category_col">费用类别:</label>
+                <select id="category_col" name="category_col">
+                    <option value="">默认（其他）</option>
+                    {% for col in excel_columns %}
+                        <option value="{{ col }}">{{ col }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label for="purpose_col">说明:</label>
                 <select id="purpose_col" name="purpose_col" required>
-                    <option value="">请选择用途列</option>
+                    <option value="">请选择说明列</option>
                     {% for col in excel_columns %}
                         <option value="{{ col }}">{{ col }}</option>
                     {% endfor %}
@@ -55,6 +65,7 @@
                     {% endfor %}
                 </select>
             </div>
+            
             
             <input type="hidden" name="temp_file" value="{{ temp_file }}">
             <button type="submit" class="btn btn-secondary w-100">映射并导入</button>

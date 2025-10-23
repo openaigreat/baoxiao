@@ -93,7 +93,8 @@ def import_expense_mapping():
         'project_col': request.form.get('project_col'),
         'purpose_col': request.form.get('purpose_col'),
         'amount_col': request.form.get('amount_col'),
-        'note_col': request.form.get('note_col')
+        'note_col': request.form.get('note_col'),
+        'category_col': request.form.get('category_col')
     }
     
     # 将参数存入session
@@ -187,9 +188,23 @@ def import_expense_final():
                 note = ''
                 if mapping['note_col'] and mapping['note_col'] in row:
                     note = str(row[mapping['note_col']]) if not pd.isna(row[mapping['note_col']]) else ''
+                
+                # === 费用分类处理 ===
+                category = '其他'  # 默认类别
+                if mapping['category_col'] and mapping['category_col'] in row:
+                    if not pd.isna(row[mapping['category_col']]):
+                        category_value = str(row[mapping['category_col']])
+                        # 标准化常见类别
+                        if any(keyword in category_value for keyword in ['餐', '食', '饭']):
+                            category = '餐费'
+                        elif any(keyword in category_value for keyword in ['交通', '车', '油', '票']):
+                            category = '交通'
+                        elif any(keyword in category_value for keyword in ['材料', '物', '品']):
+                            category = '材料'
+                        else:
+                            category = category_value
 
                 # === 插入数据库 ===
-                # 对于导入功能，暂时设置category为默认值
                 conn.execute('''
                     INSERT INTO expenses 
                     (date, project_id, purpose, amount, note, user_id, category)
@@ -201,7 +216,7 @@ def import_expense_final():
                     amount,
                     note,
                     session['user_id'],  # 自动关联当前用户
-                    '其他'  # 导入时默认类别
+                    category  # 使用映射的类别或默认值
                 ))
                 success_count += 1
                 
