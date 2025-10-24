@@ -116,7 +116,11 @@
                             <span class="text-muted">未分配</span>
                             {% endif %}
                         </td>
-                        <td>{{ expense.date }}</td>
+                        <td>
+                            <a href="{{ url_for('stats.date_expenses', date=expense.date) }}">
+                                {{ expense.date }}
+                            </a>
+                        </td>
                         <td>{{ expense.category or '未分类' }}</td>
                         <td>{{ expense.purpose }}</td>
                         <td>

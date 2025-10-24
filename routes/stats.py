@@ -6,18 +6,6 @@ from datetime import datetime
 
 bp = Blueprint('stats', __name__)
 
-def get_db():
-    if 'db' not in g:
-        g.db = sqlite3.connect('database.db')
-        g.db.row_factory = sqlite3.Row
-    return g.db
-
-@bp.teardown_request
-def close_db(exception):
-    db = g.pop('db', None)
-    if db is not None:
-        db.close()
-
 @bp.route('/stats')
 def stats():
     # 无需登录验证
@@ -91,12 +79,12 @@ def expenses(project_id):
         WHERE id = ?
     ''', (project_id,)).fetchone()
     
-    # 构建带排序的SQL查询
+    # 构建带排序的SQL查询，增加日期作为第二排序字段
     query = f'''
         SELECT e.* 
         FROM expenses e
         WHERE e.project_id = ?
-        ORDER BY e.{sort_by} {sort_order}
+        ORDER BY e.{sort_by} {sort_order}, e.date asc
     '''
     params = (project_id,)
     
@@ -237,8 +225,6 @@ def category_expenses(category_name):
     # 计算下一次点击的排序顺序
     next_sort_order = 'desc' if sort_order == 'asc' else 'asc'
     
-    conn.close()
-    
     return render_template('category_expenses.html', 
                          expenses=expenses, 
                          category_name=category_name,
@@ -256,20 +242,39 @@ def batch_update_categories():
         session['user_id'] = 1
         session['username'] = '默认用户'
     
-    # 尝试从隐藏字段获取逗号分隔的ID字符串
-    expense_ids_str = request.form.get('expense_ids_hidden')
+    # 支持多种方式获取费用ID
+    expense_ids_str = request.form.get('expense_ids_hidden')  # 从前端表单的隐藏字段获取
     if expense_ids_str:
         expense_ids = expense_ids_str.split(',')
     else:
         # 兼容原有的获取方式
-        expense_ids = request.form.getlist('expense_ids')
+        expense_ids_str = request.form.get('expense_ids')
+        if expense_ids_str:
+            expense_ids = expense_ids_str.split(',')
+        else:
+            expense_ids = request.form.getlist('expense_ids')
     
-    new_category = request.form.get('new_category')
-    category_name = request.form.get('category_name')
+    # 过滤空字符串ID
+    expense_ids = [exp_id for exp_id in expense_ids if exp_id.strip()]
+    
+    # 支持多种方式获取类别名称
+    new_category = request.form.get('category')  # 从前端新表单获取
+    if not new_category:
+        new_category = request.form.get('new_category')
+    if not new_category:
+        new_category = request.form.get('category_name')
     
     if not expense_ids:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': '请选择要修改的记录'})
         flash('请选择要修改的记录', 'warning')
-        return redirect(url_for('stats.category_expenses', category_name=category_name))
+        return redirect(url_for('stats.category_stats'))
+    
+    if not new_category:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': '请选择费用类别'})
+        flash('请选择费用类别', 'warning')
+        return redirect(url_for('stats.category_stats'))
     
     conn = get_db()
     try:
@@ -281,14 +286,32 @@ def batch_update_categories():
             WHERE id IN ({placeholders}) AND user_id = ?
         ''', [new_category] + expense_ids + [session['user_id']])
         conn.commit()
-        flash(f'成功更新 {len(expense_ids)} 条记录的费用类别', 'success')
+        
+        updated_count = conn.execute('''
+            SELECT COUNT(*)
+            FROM expenses
+            WHERE id IN ({placeholders}) AND category = ? AND user_id = ?
+        '''.format(placeholders=placeholders), expense_ids + [new_category] + [session['user_id']]).fetchone()[0]
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            # 对于AJAX请求，返回JSON响应
+            return jsonify({'success': True, 'count': updated_count})
+        else:
+            # 对于普通请求，使用flash消息
+            flash(f'成功更新 {updated_count} 条记录的费用类别', 'success')
+            # 添加多层回退机制
+            return redirect(url_for('stats.category_stats'))
     except Exception as e:
         conn.rollback()
-        flash(f'更新失败: {str(e)}', 'danger')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            # 对于AJAX请求，返回JSON错误响应
+            return jsonify({'success': False, 'error': str(e)})
+        else:
+            # 对于普通请求，使用flash消息
+            flash(f'更新失败: {str(e)}', 'danger')
+            return redirect(url_for('stats.category_stats'))
     finally:
         conn.close()
-    
-    return redirect(url_for('stats.category_expenses', category_name=category_name))
 
 @bp.route('/orphan_expenses')
 def orphan_expenses():
@@ -496,6 +519,64 @@ def delete_expense(expense_id):
     conn.close()
     
     return redirect(url_for('stats.stats'))
+
+@bp.route('/date_expenses/<date>')
+def date_expenses(date):
+    # 无需登录验证
+    # 为了兼容性，设置一个默认用户信息
+    if 'user_id' not in session:
+        session['user_id'] = 1
+        session['username'] = '默认用户'
+    
+    # 获取排序参数
+    sort_by = request.args.get('sort_by', 'project_name')
+    sort_order = request.args.get('sort_order', 'asc')
+    
+    # 验证排序参数
+    valid_sort_fields = ['project_name', 'date', 'category', 'purpose', 'amount', 'note']
+    if sort_by not in valid_sort_fields:
+        sort_by = 'project_name'
+    
+    if sort_order not in ['asc', 'desc']:
+        sort_order = 'asc'
+    
+    conn = get_db()
+    
+    # 获取该日期的所有费用记录，支持动态排序
+    query = f'''
+        SELECT e.*, p.name as project_name
+        FROM expenses e
+        LEFT JOIN projects p ON e.project_id = p.id
+        WHERE e.user_id = ? AND e.date = ?
+        ORDER BY {sort_by} {sort_order}
+    '''
+    params = (session['user_id'], date)
+    
+    expenses = conn.execute(query, params).fetchall()
+    
+    # 获取总金额
+    total_amount = conn.execute('''
+        SELECT SUM(amount) as total
+        FROM expenses
+        WHERE user_id = ? AND date = ?
+    ''', (session['user_id'], date)).fetchone()['total'] or 0
+    
+    # 获取所有项目列表，用于批量分配功能
+    projects = conn.execute('SELECT id, name FROM projects ORDER BY name').fetchall()
+    
+    conn.close()
+    
+    # 计算下一次点击的排序顺序
+    next_sort_order = 'desc' if sort_order == 'asc' else 'asc'
+    
+    return render_template('date_expenses.html', 
+                         expenses=expenses, 
+                         target_date=date,
+                         total_amount=total_amount,
+                         current_sort=sort_by,
+                         current_order=sort_order,
+                         next_sort_order=next_sort_order,
+                         projects=projects)
 
 @bp.route('/get_orphan_expenses_total')
 def get_orphan_expenses_total():

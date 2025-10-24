@@ -28,6 +28,27 @@
     .navbar-nav .nav-link {
         padding: 12px 10px;
     }
+} /* 关闭媒体查询 */
+
+/* 确保导航栏始终展开显示 */
+.navbar-collapse {
+    display: flex !important;
+    justify-content: flex-end !important;
+    flex-basis: auto !important;
+}
+
+/* 确保导航项始终显示 */
+.navbar-nav {
+    display: flex !important;
+    flex-direction: row !important;
+    margin: 0 !important;
+}
+
+/* 调整导航项之间的间距 */
+.navbar-nav .nav-link {
+    margin-left: 1rem !important;
+    margin-right: 0 !important;
+}
     /* 调整卡片样式 */
     .card {
         margin-bottom: 15px;
@@ -52,6 +73,11 @@
 .card {
     margin-bottom: 20px;
     border-radius: 10px;
+}
+
+/* 去除导航栏的层叠（阴影）效果 */
+.navbar {
+    box-shadow: none !important;
 }
 .list-group-item {
     transition: all 0.3s;

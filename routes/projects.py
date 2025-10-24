@@ -74,20 +74,19 @@ def edit_project(project_id):
     
     if request.method == 'POST':
         name = request.form['name']
-        amount = float(request.form['amount'])
-        note = request.form['note']
+        note = request.form.get('note', '')
         
         conn.execute('''
             UPDATE projects
-            SET name = ?, amount = ?, note = ?
+            SET name = ?, note = ?
             WHERE id = ?
-        ''', (name, amount, note, project_id))
+        ''', (name, note, project_id))
         conn.commit()
         conn.close()
         return redirect(url_for('stats.expenses', project_id=project_id))
     
     project = conn.execute('''
-        SELECT id, name, amount, note FROM projects
+        SELECT id, name, note FROM projects
         WHERE id = ?
     ''', (project_id,)).fetchone()
     

@@ -8,10 +8,7 @@
 </style>
 <div class="card shadow">
     <div class="card-body">
-        <h2 class="card-title mb-4">支出明细 <small class="smaller-text">({{ project.id }}) - {{ project.name }}</small>
-        <a href="{{ url_for('projects.edit_project', project_id=project.id) }}" class="btn btn-sm btn-warning float-end me-2">
-            修改项目信息
-        </a>
+        <h2 class="card-title mb-4">日期明细 <small class="smaller-text">({{ target_date }}) - {{ expenses|length }}</small>
         <button id="batch-category-btn" class="btn btn-sm float-end me-2" style="background-color: rgb(132, 112, 255); color: white;" disabled>
             更改费用分类
         </button>
@@ -19,58 +16,69 @@
             更改归属项目
         </button>
         </h2>
+        
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th style="cursor: pointer;">
-                            <a href="{{ url_for('stats.expenses', project_id=project.id, sort_by='category', sort_order=next_sort_order if current_sort == 'category' else 'asc') }}">
-                                费用类别
-                                {% if current_sort == 'category' %}
-                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                        <th style="width: 150px;">
+                            <a href="{{ url_for('stats.date_expenses', date=target_date, sort_by='project_name', sort_order=(next_sort_order if current_sort == 'project_name' else 'asc')) }}">
+                                项目
+                                {% if current_sort == 'project_name' %}
+                                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
                                 {% else %}
-                                    <i class="bi bi-sort"></i>
+                                <i class="bi bi-sort"></i>
                                 {% endif %}
                             </a>
                         </th>
-                        <th style="width: 150px; cursor: pointer;">
-                            <a href="{{ url_for('stats.expenses', project_id=project.id, sort_by='date', sort_order=next_sort_order if current_sort == 'date' else 'asc') }}">
+                        <th style="width: 120px;">
+                            <a href="{{ url_for('stats.date_expenses', date=target_date, sort_by='date', sort_order=(next_sort_order if current_sort == 'date' else 'asc')) }}">
                                 日期
                                 {% if current_sort == 'date' %}
-                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
                                 {% else %}
-                                    <i class="bi bi-sort"></i>
+                                <i class="bi bi-sort"></i>
                                 {% endif %}
                             </a>
                         </th>
-                        <th style="cursor: pointer;">
-                            <a href="{{ url_for('stats.expenses', project_id=project.id, sort_by='purpose', sort_order=next_sort_order if current_sort == 'purpose' else 'asc') }}">
+                        <th>
+                            <a href="{{ url_for('stats.date_expenses', date=target_date, sort_by='category', sort_order=(next_sort_order if current_sort == 'category' else 'asc')) }}">
+                                类别
+                                {% if current_sort == 'category' %}
+                                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                <i class="bi bi-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('stats.date_expenses', date=target_date, sort_by='purpose', sort_order=(next_sort_order if current_sort == 'purpose' else 'asc')) }}">
                                 用途
                                 {% if current_sort == 'purpose' %}
-                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
                                 {% else %}
-                                    <i class="bi bi-sort"></i>
+                                <i class="bi bi-sort"></i>
                                 {% endif %}
                             </a>
                         </th>
                         <th><input type="checkbox" id="select-all"></th>
-                        <th style="cursor: pointer;">
-                            <a href="{{ url_for('stats.expenses', project_id=project.id, sort_by='amount', sort_order=next_sort_order if current_sort == 'amount' else 'asc') }}">
+                        <th>
+                            <a href="{{ url_for('stats.date_expenses', date=target_date, sort_by='amount', sort_order=(next_sort_order if current_sort == 'amount' else 'asc')) }}">
                                 金额
                                 {% if current_sort == 'amount' %}
-                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
                                 {% else %}
-                                    <i class="bi bi-sort"></i>
+                                <i class="bi bi-sort"></i>
                                 {% endif %}
                             </a>
                         </th>
-                        <th style="cursor: pointer;">
-                            <a href="{{ url_for('stats.expenses', project_id=project.id, sort_by='note', sort_order=next_sort_order if current_sort == 'note' else 'asc') }}">
+                        <th>
+                            <a href="{{ url_for('stats.date_expenses', date=target_date, sort_by='note', sort_order=(next_sort_order if current_sort == 'note' else 'asc')) }}">
                                 备注
                                 {% if current_sort == 'note' %}
-                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
                                 {% else %}
-                                    <i class="bi bi-sort"></i>
+                                <i class="bi bi-sort"></i>
                                 {% endif %}
                             </a>
                         </th>
@@ -80,16 +88,21 @@
                 <tbody>
                     {% for expense in expenses %}
                     <tr>
-                        <td>{{ expense.category or '未分类' }}</td>
                         <td>
-                            <a href="{{ url_for('stats.date_expenses', date=expense.date) }}">
-                                {{ expense.date }}
+                            {% if expense.project_name %}
+                            <a href="{{ url_for('stats.expenses', project_id=expense.project_id) }}">
+                                {{ expense.project_name }}
                             </a>
+                            {% else %}
+                            <span class="text-muted">未分配</span>
+                            {% endif %}
                         </td>
+                        <td>{{ expense.date }}</td>
+                        <td>{{ expense.category or '未分类' }}</td>
                         <td>{{ expense.purpose }}</td>
                         <td><input type="checkbox" class="expense-checkbox" value="{{ expense.id }}"></td>
                         <td>{{ "¥%.2f"|format(expense.amount) }}</td>
-                        <td>{{ expense.note }}</td>
+                        <td>{{ expense.note or '-' }}</td>
                         <td>
                             <div class="action-buttons">
                                 <a href="{{ url_for('stats.edit_expense', expense_id=expense.id) }}" class="btn btn-sm btn-warning">
@@ -98,17 +111,22 @@
                             </div>
                         </td>
                     </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">暂无费用记录</td>
+                    </tr>
                     {% endfor %}
                     <tr>
-                        <td colspan="4"></td>
-                        <td><strong>总计: ¥{{ total_amount }}</strong></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td><strong>总计: ¥{{ "%.2f"|format(total_amount) }}</strong></td>
                         <td colspan="2"></td>
                     </tr>
                 </tbody>
-            </table>
-        </div>
-        <div class="mt-3">
-
+            </table></div>
         </div>
     </div>
 </div>
@@ -122,7 +140,6 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <!-- 使用实际的表单标签，而不是只有ID -->
                 <form id="assign-project-form" method="POST" action="/batch_assign_project">
                     <input type="hidden" id="selected-expense-ids" name="expense_ids">
                     <div class="mb-3">
@@ -137,7 +154,6 @@
                     <div class="text-end">
                         <button id="open-add-project-modal" type="button" class="text-primary text-sm bg-transparent border-none p-0" style="cursor: pointer; text-decoration: underline; text-decoration-thickness: from-font;">添加新项目</button>
                     </div>
-                    <div id="debugInfo" style="margin-top: 10px; font-size: 12px; color: #666;"></div>
                 </form>
             </div>
             <div class="modal-footer justify-content-between">
@@ -299,9 +315,7 @@ batchAssignBtn.addEventListener('click', function() {
         return;
     }
     
-    // 使用正确的字段ID
     document.getElementById('selected-expense-ids').value = selectedIds.join(',');
-    console.log('已选择的支出ID:', selectedIds.join(','));
     
     // 在打开模态框之前更新项目列表
     updateProjectSelectList();
@@ -316,10 +330,8 @@ function updateProjectSelectList() {
     fetch('/get_all_projects')
         .then(response => response.json())
         .then(data => {
-            // 使用正确的选择框ID
             const projectSelect = document.getElementById('project_id');
             if (projectSelect) {
-                console.log('更新项目列表，共', data.projects.length, '个项目');
                 // 清空现有选项，保留"请选择项目"选项
                 const placeholderOption = projectSelect.querySelector('option[value=""]');
                 projectSelect.innerHTML = '';
@@ -334,8 +346,6 @@ function updateProjectSelectList() {
                     option.textContent = project.name;
                     projectSelect.appendChild(option);
                 });
-            } else {
-                console.error('未找到项目选择下拉列表元素');
             }
         })
         .catch(error => {
@@ -431,7 +441,6 @@ batchCategoryBtn.addEventListener('click', function() {
     }
     
     document.getElementById('selected-category-expense-ids').value = selectedIds.join(',');
-    console.log('已选择的支出ID:', selectedIds.join(','));
     
     // 在打开模态框之前更新费用类别列表
     updateCategoryOptions();
@@ -463,8 +472,6 @@ function updateCategoryOptions() {
             `;
             categoryContainer.appendChild(div);
         });
-    } else {
-        console.error('未找到费用类别选项容器');
     }
 }
 
