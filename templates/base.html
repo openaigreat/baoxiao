@@ -1,13 +1,3 @@
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    <ul class="flashes">
-    {% for category, message in messages %}
-      <li class="{{ category }}">{{ message }}</li>
-    {% endfor %}
-    </ul>
-  {% endif %}
-{% endwith %}
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -42,6 +32,12 @@
                 pageDescription = '费用分类统计';
             } else if (path.includes('/category/')) {
                 pageDescription = '分类明细';
+            } else if (path.includes('/reimbursements')) {
+                pageDescription = '报销管理';
+            } else if (path.includes('/add_reimbursement')) {
+                pageDescription = '创建报销单';
+            } else if (path.includes('/edit_reimbursement')) {
+                pageDescription = '编辑报销单';
             }
             
             // 直接设置整个标题
@@ -63,11 +59,22 @@
                     <a class="nav-link" href="/add_expense">记录支出</a>
                     <a class="nav-link" href="/stats">项目统计</a>
                     <a class="nav-link" href="/category_stats">费用分类</a>
+                    <a class="nav-link" href="/reimbursements">报销管理</a>
                 </div>
             </div>
         </div>
     </nav>
     <div class="container mt-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ 'danger' if category == 'error' else category }}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        
         {% block content %}{% endblock %}
     </div>
 </body>

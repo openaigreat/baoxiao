@@ -79,11 +79,12 @@ def expenses(project_id):
         WHERE id = ?
     ''', (project_id,)).fetchone()
     
-    # 构建带排序的SQL查询，增加日期作为第二排序字段
+    # 构建带排序的SQL查询，只返回未报销的支出记录
     query = f'''
-        SELECT e.* 
+        SELECT e.*, CASE WHEN re.expense_id IS NOT NULL THEN 1 ELSE 0 END as reimbursement_status
         FROM expenses e
-        WHERE e.project_id = ?
+        LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
+        WHERE e.project_id = ? AND re.reimbursement_id IS NULL
         ORDER BY e.{sort_by} {sort_order}, e.date asc
     '''
     params = (project_id,)
@@ -194,11 +195,12 @@ def category_expenses(category_name):
     
     conn = get_db()
     
-    # 获取该类别的所有费用记录，支持动态排序
+    # 获取该类别的所有费用记录，支持动态排序，并左连接报销表以获取报销状态
     query = f'''
-        SELECT e.*, p.name as project_name
+        SELECT e.*, p.name as project_name, CASE WHEN re.expense_id IS NOT NULL THEN 1 ELSE 0 END as reimbursement_status
         FROM expenses e
         LEFT JOIN projects p ON e.project_id = p.id
+        LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
         WHERE e.user_id = ? AND e.category = ?
         ORDER BY {sort_by} {sort_order}
     '''
@@ -336,10 +338,12 @@ def orphan_expenses():
     
     conn = get_db()
     try:
-        # 构建带排序的SQL查询
+        # 构建带排序的SQL查询，并左连接报销表以获取报销状态
         query = f'''
-            SELECT e.id, e.date, e.purpose, e.amount, e.note, e.user_id, e.category
+            SELECT e.id, e.date, e.purpose, e.amount, e.note, e.user_id, e.category, 
+                   CASE WHEN re.expense_id IS NOT NULL THEN 1 ELSE 0 END as reimbursement_status
             FROM expenses e
+            LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
             WHERE e.project_id IS NULL OR e.project_id NOT IN (SELECT id FROM projects)
             ORDER BY e.{sort_by} {sort_order}
         '''
@@ -542,11 +546,12 @@ def date_expenses(date):
     
     conn = get_db()
     
-    # 获取该日期的所有费用记录，支持动态排序
+    # 获取该日期的所有费用记录，支持动态排序，并左连接报销表以获取报销状态
     query = f'''
-        SELECT e.*, p.name as project_name
+        SELECT e.*, p.name as project_name, CASE WHEN re.expense_id IS NOT NULL THEN 1 ELSE 0 END as reimbursement_status
         FROM expenses e
         LEFT JOIN projects p ON e.project_id = p.id
+        LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
         WHERE e.user_id = ? AND e.date = ?
         ORDER BY {sort_by} {sort_order}
     '''

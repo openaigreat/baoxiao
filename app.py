@@ -1,6 +1,6 @@
 from flask import Flask, redirect, url_for, session, render_template
 from config import Config
-from routes import auth, projects, expenses, stats
+from routes import auth, projects, expenses, stats, reimbursements
 import os
 
 def create_app():
@@ -17,6 +17,7 @@ def create_app():
     app.register_blueprint(projects.bp)
     app.register_blueprint(expenses.bp)
     app.register_blueprint(stats.bp)
+    app.register_blueprint(reimbursements.bp)
 
     @app.route('/')
     def index():

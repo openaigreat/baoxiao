@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card shadow">
+    <div class="card-body">
+        <h2 class="card-title mb-4">创建报销单</h2>
+        
+        <form method="POST" action="{{ url_for('reimbursements.add_reimbursement') }}">
+            <div class="mb-3">
+                <label for="submit_date" class="form-label">提交日期 <span class="text-danger">*</span></label>
+                <input type="date" class="form-control" id="submit_date" name="submit_date" required value="{{ today }}">
+            </div>
+            
+            <div class="mb-3">
+                <label for="note" class="form-label">备注</label>
+                <textarea class="form-control" id="note" name="note" rows="3"></textarea>
+                <div class="form-text">可填写报销相关的说明信息</div>
+            </div>
+            
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">创建并继续编辑</button>
+                <a href="{{ url_for('reimbursements.reimbursements') }}" class="btn btn-secondary">取消</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// 设置默认日期为今天
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const formattedDate = `${yyyy}-${mm}-${dd}`;
+    
+    document.getElementById('submit_date').value = formattedDate;
+});
+</script>
+{% endblock %}

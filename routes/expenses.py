@@ -73,11 +73,33 @@ def import_expense():
         file.save(temp_path)
         
         # 读取文件列名
-        if file.filename.endswith('.csv'):
-            df = pd.read_csv(temp_path)
-        else:
-            engine = 'openpyxl' if file.filename.endswith('.xlsx') else 'xlrd'
-            df = pd.read_excel(temp_path, engine=engine)
+        try:
+            # 转换为小写进行比较，避免大小写问题
+            file_ext = file.filename.lower()
+            if file_ext.endswith('.csv'):
+                # 尝试不同的编码格式来读取CSV文件
+                try:
+                    df = pd.read_csv(temp_path, encoding='utf-8')
+                except UnicodeDecodeError:
+                    try:
+                        df = pd.read_csv(temp_path, encoding='gbk')
+                    except UnicodeDecodeError:
+                        try:
+                            df = pd.read_csv(temp_path, encoding='gb2312')
+                        except:
+                            flash('CSV文件编码不支持，请尝试UTF-8或GBK编码格式', 'danger')
+                            return redirect(url_for('expenses.import_expense'))
+            elif file_ext.endswith('.xlsx'):
+                # 对于xlsx文件，强制使用openpyxl引擎
+                df = pd.read_excel(temp_path, engine='openpyxl')
+            elif file_ext.endswith('.xls'):
+                # 对于xls文件，使用xlrd引擎
+                df = pd.read_excel(temp_path, engine='xlrd')
+            else:
+                return "不支持的文件格式，请上传CSV、XLSX或XLS格式的文件", 400
+        except Exception as e:
+            flash(f'文件读取失败: {str(e)}', 'danger')
+            return redirect(url_for('expenses.import_expense'))
         
         return render_template('import_expense_mapping.html',
                              excel_columns=df.columns.tolist(),
@@ -125,11 +147,30 @@ def import_expense_final():
    
     # 读取数据文件
     try:
-        if file_path.endswith('.csv'):
-            df = pd.read_csv(temp_path)
+        # 转换为小写进行比较，避免大小写问题
+        file_ext = file_path.lower()
+        if file_ext.endswith('.csv'):
+            # 尝试不同的编码格式来读取CSV文件
+            try:
+                df = pd.read_csv(temp_path, encoding='utf-8')
+            except UnicodeDecodeError:
+                try:
+                    df = pd.read_csv(temp_path, encoding='gbk')
+                except UnicodeDecodeError:
+                    try:
+                        df = pd.read_csv(temp_path, encoding='gb2312')
+                    except:
+                        flash('CSV文件编码不支持，请尝试UTF-8或GBK编码格式', 'danger')
+                        return redirect(url_for('expenses.import_expense'))
+        elif file_ext.endswith('.xlsx'):
+            # 对于xlsx文件，强制使用openpyxl引擎
+            df = pd.read_excel(temp_path, engine='openpyxl')
+        elif file_ext.endswith('.xls'):
+            # 对于xls文件，使用xlrd引擎
+            df = pd.read_excel(temp_path, engine='xlrd')
         else:
-            engine = 'openpyxl' if file_path.endswith('.xlsx') else 'xlrd'
-            df = pd.read_excel(temp_path, engine=engine)
+            flash('不支持的文件格式', 'danger')
+            return redirect(url_for('expenses.import_expense'))
     except Exception as e:
         flash(f'文件读取失败: {str(e)}', 'danger')
         return redirect(url_for('expenses.import_expense'))

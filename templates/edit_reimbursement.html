@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card shadow">
+    <div class="card-body">
+        <h2 class="card-title mb-4">编辑报销单 #{{ reimbursement.id }}
+            {% if reimbursement.status == '草稿' %}
+            <span class="badge bg-secondary">草稿</span>
+            {% elif reimbursement.status == '已提交' %}
+            <span class="badge bg-primary">已提交</span>
+            {% elif reimbursement.status == '审核中' %}
+            <span class="badge bg-info">审核中</span>
+            {% elif reimbursement.status == '已批准' %}
+            <span class="badge bg-success">已批准</span>
+            {% elif reimbursement.status == '已拒绝' %}
+            <span class="badge bg-danger">已拒绝</span>
+            {% endif %}
+        </h2>
+        
+        <!-- 报销单基本信息 -->
+        <div class="mb-6">
+            <form method="POST" action="{{ url_for('reimbursements.edit_reimbursement', reimbursement_id=reimbursement.id) }}">
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="submit_date" class="form-label">提交日期 <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="submit_date" name="submit_date" required value="{{ reimbursement.submit_date }}">
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">创建时间</label>
+                        <div class="form-control-plaintext">
+                            {{ reimbursement.created_at }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="note" class="form-label">备注</label>
+                    <textarea class="form-control" id="note" name="note" rows="3">{{ reimbursement.note or '' }}</textarea>
+                </div>
+                
+                {% if reimbursement.status == '草稿' or reimbursement.status == '已拒绝' %}
+                <div class="mt-4">
+                    <button type="submit" name="action" value="update" class="btn btn-primary me-2">保存修改</button>
+                    
+                    {% if attached_expenses|length > 0 %}
+                    <button type="submit" name="action" value="submit" class="btn btn-success me-2">提交报销</button>
+                    {% endif %}
+                    
+                    <a href="{{ url_for('reimbursements.reimbursements') }}" class="btn btn-secondary">返回列表</a>
+                </div>
+                {% else %}
+                <div class="mt-4">
+                    <a href="{{ url_for('reimbursements.reimbursements') }}" class="btn btn-secondary">返回列表</a>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+        
+        <!-- 回款记录 -->
+         <div class="mb-6">
+             <h3 class="mb-3">回款记录</h3>
+              
+             <!-- 回款统计 -->
+             <div class="card" style="margin-bottom: 20px;">
+                 <div class="card-body">
+                     <div class="row">
+                         <div class="col-md-3">
+                             <div class="form-group">
+                                 <label>报销总额：</label>
+                                 <span class="font-weight-bold">¥{{ "%.2f"|format(attached_expenses|sum(attribute='reimbursement_amount', start=0)) }}</span>
+                             </div>
+                         </div>
+                         <div class="col-md-3">
+                             <div class="form-group">
+                                 <label>已回款金额：</label>
+                                 <span class="font-weight-bold text-success">¥{{ "%.2f"|format(total_paid or 0) }}</span>
+                             </div>
+                         </div>
+                         <div class="col-md-3">
+                             <div class="form-group">
+                                 <label>未回款金额：</label>
+                                 <span class="font-weight-bold text-danger">¥{{ "%.2f"|format((attached_expenses|sum(attribute='reimbursement_amount', start=0)) - (total_paid or 0)) }}</span>
+                             </div>
+                         </div>
+                         <div class="col-md-3">
+                             <div class="form-group">
+                                 <label>当前状态：</label>
+                                 <span class="font-weight-bold">
+                                     {% if reimbursement.status == '已回款' %}
+                                     <span class="text-success">{{ reimbursement.status }}</span>
+                                     {% else %}
+                                     {{ reimbursement.status }}
+                                     {% endif %}
+                                 </span>
+                             </div>
+                         </div>
+                     </div>
+                 </div>
+             </div>
+              
+             <!-- 添加回款记录表单 -->
+             {% if reimbursement.status != '草稿' %}
+             <div class="card" style="margin-bottom: 20px;">
+                 <div class="card-header">添加回款记录</div>
+                 <div class="card-body">
+                     <form id="payment-form">
+                         <div class="form-row">
+                             <div class="form-group col-md-4">
+                                 <label for="payment_date">回款日期 *</label>
+                                 <input type="date" class="form-control" id="payment_date" name="payment_date" required value="{{ today_date }}">
+                             </div>
+                             <div class="form-group col-md-4">
+                                 <label for="amount">回款金额 *</label>
+                                 <input type="number" step="0.01" class="form-control" id="amount" name="amount" min="0.01" required>
+                             </div>
+                             <div class="form-group col-md-4">
+                                 <label>&nbsp;</label>
+                                 <button type="submit" class="btn btn-success form-control">添加回款</button>
+                             </div>
+                         </div>
+                         <div class="form-group">
+                             <label for="note">备注</label>
+                             <textarea class="form-control" id="note" name="note" rows="3"></textarea>
+                         </div>
+                     </form>
+                 </div>
+             </div>
+             {% endif %}
+              
+             <!-- 回款记录列表 -->
+             {% if payments %}
+             <table class="table table-hover">
+                 <thead>
+                     <tr>
+                         <th>回款日期</th>
+                         <th>回款金额</th>
+                         <th>备注</th>
+                         <th>添加时间</th>
+                     </tr>
+                 </thead>
+                 <tbody>
+                     {% for payment in payments %}
+                     <tr>
+                         <td>{{ payment.payment_date }}</td>
+                         <td>¥{{ "%.2f"|format(payment.amount) }}</td>
+                         <td>{{ payment.note or '-' }}</td>
+                         <td>{{ payment.created_at }}</td>
+                     </tr>
+                     {% endfor %}
+                 </tbody>
+             </table>
+             {% else %}
+             <p>暂无回款记录</p>
+             {% endif %}
+         </div>
+        
+        <!-- 已关联支出记录 -->
+        <div class="mb-6">
+            <h3 class="mb-3">已关联支出记录 ({{ attached_expenses|length }})</h3>
+            
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>项目</th>
+                            <th>类别</th>
+                            <th>用途</th>
+                            <th>支出金额</th>
+                            <th>报销金额</th>
+                            <th>备注</th>
+                            {% if reimbursement.status == '草稿' or reimbursement.status == '已拒绝' %}
+                            <th>操作</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for expense in attached_expenses %}
+                        <tr>
+                            <td>{{ expense.date }}</td>
+                            <td>{{ expense.project_name or '未分配' }}</td>
+                            <td>{{ expense.category or '未分类' }}</td>
+                            <td>{{ expense.purpose }}</td>
+                            <td>¥{{ "%.2f"|format(expense.amount) }}</td>
+                            <td>¥{{ "%.2f"|format(expense.reimbursement_amount) }}</td>
+                            <td>{{ expense.note or '-' }}</td>
+                            {% if reimbursement.status == '草稿' or reimbursement.status == '已拒绝' %}
+                            <td>
+                                <button class="btn btn-sm btn-danger remove-expense" 
+                                        data-expense-id="{{ expense.id }}" 
+                                        data-reimbursement-id="{{ reimbursement.id }}">
+                                    移除
+                                </button>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                        <tr class="table-info">
+                            <td colspan="5" class="text-end"><strong>总计:</strong></td>
+                            <td><strong>¥{{ "%.2f"|format(attached_expenses|sum(attribute='reimbursement_amount', start=0)) }}</strong></td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- 添加支出记录 -->
+        {% if (reimbursement.status == '草稿' or reimbursement.status == '已拒绝') %}
+        <div class="alert alert-info">
+            <p>请从 <a href="{{ url_for('stats.stats') }}">支出记录列表</a> 页面，使用"批量添加到报销单"功能将支出记录添加到本报销单。</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// 处理移除支出记录
+const removeButtons = document.querySelectorAll('.remove-expense');
+removeButtons.forEach(button => {
+    button.addEventListener('click', function() {
+        if (!confirm('确定要从报销单中移除这条支出记录吗？')) {
+            return;
+        }
+        
+        const expenseId = this.getAttribute('data-expense-id');
+        const reimbursementId = this.getAttribute('data-reimbursement-id');
+        
+        fetch('/remove_expense_from_reimbursement', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: `reimbursement_id=${reimbursementId}&expense_id=${expenseId}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('移除失败: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('提交失败: ' + error);
+        });
+    });
+});
+
+// 添加回款记录
+const paymentForm = document.getElementById('payment-form');
+if (paymentForm) {
+    paymentForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const paymentDate = document.getElementById('payment_date').value;
+        const amount = document.getElementById('amount').value;
+        const note = document.getElementById('note').value;
+        
+        fetch('/add_reimbursement_payment/{{ reimbursement.id }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: `payment_date=${paymentDate}&amount=${amount}&note=${encodeURIComponent(note)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('回款记录添加成功');
+                // 重置表单
+                paymentForm.reset();
+                // 刷新页面以显示最新数据
+                location.reload();
+            } else {
+                alert('添加失败: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('提交失败: ' + error);
+        });
+    });
+}
+</script>
+{% endblock %}

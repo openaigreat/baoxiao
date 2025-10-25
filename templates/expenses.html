@@ -8,17 +8,23 @@
 </style>
 <div class="card shadow">
     <div class="card-body">
-        <h2 class="card-title mb-4">支出明细 <small class="smaller-text">({{ project.id }}) - {{ project.name }}</small>
-        <a href="{{ url_for('projects.edit_project', project_id=project.id) }}" class="btn btn-sm btn-warning float-end me-2">
-            修改项目信息
-        </a>
-        <button id="batch-category-btn" class="btn btn-sm float-end me-2" style="background-color: rgb(132, 112, 255); color: white;" disabled>
-            更改费用分类
-        </button>
-        <button id="batch-assign-btn" class="btn btn-sm btn-primary float-end me-2" disabled>
-            更改归属项目
-        </button>
-        </h2>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="card-title mb-0">支出明细 <small class="smaller-text">({{ project.id }}) - {{ project.name }}</small></h2>
+        <div>
+            <a href="{{ url_for('projects.edit_project', project_id=project.id) }}" class="btn btn-sm btn-warning me-2">
+                修改项目信息
+            </a>
+            <button id="batch-category-btn" class="btn btn-sm me-2" style="background-color: rgb(132, 112, 255); color: white;" disabled>
+                更改费用分类
+            </button>
+            <button id="batch-assign-btn" class="btn btn-sm btn-primary me-2" disabled>
+                更改归属项目
+            </button>
+            <button id="batch-add-to-reimbursement-btn" class="btn btn-sm btn-info me-2" disabled>
+                批量添加到报销单
+            </button>
+        </div>
+    </div>
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
@@ -74,13 +80,22 @@
                                 {% endif %}
                             </a>
                         </th>
-                        <th style="width: 100px;">操作</th>
+                        <th>报销状态</th>
+                <th style="width: 100px;">操作</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for expense in expenses %}
                     <tr>
-                        <td>{{ expense.category or '未分类' }}</td>
+                        <td>
+                            {{ expense.category or '未分类' }}
+                            <br>
+                            {% if expense.reimbursement_status %}
+                                <span class="text-success">已提交</span>
+                            {% else %}
+                                <span class="text-secondary">未报销</span>
+                            {% endif %}
+                        </td>
                         <td>
                             <a href="{{ url_for('stats.date_expenses', date=expense.date) }}">
                                 {{ expense.date }}
@@ -207,8 +222,9 @@
 // 全选/取消全选
 const selectAllCheckbox = document.getElementById('select-all');
 const expenseCheckboxes = document.querySelectorAll('.expense-checkbox');
-const batchAssignBtn = document.getElementById('batch-assign-btn');
 const batchCategoryBtn = document.getElementById('batch-category-btn');
+const batchAssignBtn = document.getElementById('batch-assign-btn');
+const batchReimbursementBtn = document.getElementById('batch-add-to-reimbursement-btn');
 
 selectAllCheckbox.addEventListener('change', function() {
     expenseCheckboxes.forEach(checkbox => {
@@ -244,8 +260,9 @@ expenseCheckboxes.forEach(checkbox => {
 
 function updateBatchButton() {
     const checkedCount = document.querySelectorAll('.expense-checkbox:checked').length;
-    batchAssignBtn.disabled = checkedCount === 0;
     batchCategoryBtn.disabled = checkedCount === 0;
+    batchAssignBtn.disabled = checkedCount === 0;
+    batchReimbursementBtn.disabled = checkedCount === 0;
 }
 
 // 为每一行添加点击事件
@@ -299,9 +316,7 @@ batchAssignBtn.addEventListener('click', function() {
         return;
     }
     
-    // 使用正确的字段ID
     document.getElementById('selected-expense-ids').value = selectedIds.join(',');
-    console.log('已选择的支出ID:', selectedIds.join(','));
     
     // 在打开模态框之前更新项目列表
     updateProjectSelectList();
@@ -316,10 +331,8 @@ function updateProjectSelectList() {
     fetch('/get_all_projects')
         .then(response => response.json())
         .then(data => {
-            // 使用正确的选择框ID
             const projectSelect = document.getElementById('project_id');
             if (projectSelect) {
-                console.log('更新项目列表，共', data.projects.length, '个项目');
                 // 清空现有选项，保留"请选择项目"选项
                 const placeholderOption = projectSelect.querySelector('option[value=""]');
                 projectSelect.innerHTML = '';
@@ -334,8 +347,6 @@ function updateProjectSelectList() {
                     option.textContent = project.name;
                     projectSelect.appendChild(option);
                 });
-            } else {
-                console.error('未找到项目选择下拉列表元素');
             }
         })
         .catch(error => {
@@ -431,7 +442,6 @@ batchCategoryBtn.addEventListener('click', function() {
     }
     
     document.getElementById('selected-category-expense-ids').value = selectedIds.join(',');
-    console.log('已选择的支出ID:', selectedIds.join(','));
     
     // 在打开模态框之前更新费用类别列表
     updateCategoryOptions();
@@ -463,8 +473,6 @@ function updateCategoryOptions() {
             `;
             categoryContainer.appendChild(div);
         });
-    } else {
-        console.error('未找到费用类别选项容器');
     }
 }
 
@@ -504,6 +512,231 @@ document.getElementById('batch-category-form').addEventListener('submit', functi
         alert('提交失败: ' + error);
     });
 });
+
+// 打开批量添加到报销单模态框
+batchReimbursementBtn.addEventListener('click', function() {
+    const selectedIds = Array.from(document.querySelectorAll('.expense-checkbox:checked'))
+        .map(checkbox => checkbox.value);
+    
+    // 检查是否有选中的支出记录
+    if (selectedIds.length === 0) {
+        alert('请先选择要添加到报销单的支出记录');
+        return;
+    }
+    
+    // 创建并打开模态框
+    const modalHtml = `
+    <div class="modal fade" id="reimbursementModal" tabindex="-1" aria-labelledby="reimbursementModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="reimbursementModalLabel">批量添加到报销单</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="batch-reimbursement-form">
+                    <div class="modal-body">
+                        <input type="hidden" id="reimbursement-expense-ids" name="expense_ids" value="${selectedIds.join(',')}">
+                        <div class="mb-3">
+                            <label for="reimbursement_id" class="form-label">选择报销单</label>
+                            <select class="form-select" id="reimbursement_id" name="reimbursement_id" required>
+                                <option value="">请选择报销单</option>
+                                <!-- 报销单选项将通过JavaScript动态加载 -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer justify-content-between">
+                        <button type="button" class="btn btn-success" id="create-new-reimbursement">创建新报销单</button>
+                        <div>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="submit" class="btn btn-primary">确认添加</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>`;
+    
+    // 添加模态框到body
+    const modalContainer = document.createElement('div');
+    modalContainer.innerHTML = modalHtml;
+    document.body.appendChild(modalContainer.firstElementChild);
+    
+    // 加载报销单列表
+    loadReimbursements();
+    
+    // 打开模态框
+    const reimbursementModal = new bootstrap.Modal(document.getElementById('reimbursementModal'));
+    reimbursementModal.show();
+    
+    // 模态框关闭后移除元素
+    document.getElementById('reimbursementModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+    
+    // 添加表单提交事件
+    document.getElementById('batch-reimbursement-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        fetch('/batch_add_to_reimbursement', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('网络响应错误');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // 关闭模态框
+                const modal = bootstrap.Modal.getInstance(document.getElementById('reimbursementModal'));
+                if (modal) {
+                    modal.hide();
+                }
+                alert('成功添加 ' + data.count + ' 条记录到报销单');
+                window.location.reload();
+            } else {
+                alert('添加失败: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('提交失败: ' + error);
+        });
+    });
+
+    // 创建新报销单按钮事件
+    document.getElementById('create-new-reimbursement').addEventListener('click', function() {
+        // 关闭当前模态框
+        const currentModal = bootstrap.Modal.getInstance(document.getElementById('reimbursementModal'));
+        if (currentModal) {
+            currentModal.hide();
+        }
+        
+        // 创建并打开创建报销单模态框
+        const createModalHtml = `
+        <div class="modal fade" id="createReimbursementModal" tabindex="-1" aria-labelledby="createReimbursementModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="createReimbursementModalLabel">创建新报销单</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form id="create-reimbursement-form">
+                        <div class="modal-body">
+                            <input type="hidden" id="new-expense-ids" name="expense_ids" value="${selectedIds.join(',')}">
+                            <div class="mb-3">
+                                <label for="new-submit-date" class="form-label">提交日期 <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="new-submit-date" name="submit_date" required value="${new Date().toISOString().split('T')[0]}">
+                            </div>
+                            <div class="mb-3">
+                                <label for="new-note" class="form-label">备注</label>
+                                <textarea class="form-control" id="new-note" name="note" rows="3"></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="submit" class="btn btn-primary">创建并添加</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>`;
+        
+        // 添加创建报销单模态框到body
+        const createModalContainer = document.createElement('div');
+        createModalContainer.innerHTML = createModalHtml;
+        document.body.appendChild(createModalContainer.firstElementChild);
+        
+        // 打开创建报销单模态框
+        const createReimbursementModal = new bootstrap.Modal(document.getElementById('createReimbursementModal'));
+        createReimbursementModal.show();
+        
+        // 模态框关闭后移除元素
+        document.getElementById('createReimbursementModal').addEventListener('hidden.bs.modal', function() {
+            this.remove();
+        });
+        
+        // 添加创建报销单表单提交事件
+        document.getElementById('create-reimbursement-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            fetch('/create_reimbursement_and_add_expenses', { 
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('网络响应错误');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // 关闭模态框
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('createReimbursementModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                    alert('成功创建报销单并添加 ' + data.count + ' 条记录');
+                    window.location.reload();
+                } else {
+                    alert('创建失败: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('提交失败: ' + error);
+            });
+        });
+    });
+});
+
+// 加载报销单列表
+function loadReimbursements() {
+    fetch('/get_draft_reimbursements')
+        .then(response => response.json())
+        .then(data => {
+            const reimbursementSelect = document.getElementById('reimbursement_id');
+            if (reimbursementSelect) {
+                // 清空现有选项，保留"请选择报销单"选项
+                const placeholderOption = reimbursementSelect.querySelector('option[value=""]');
+                reimbursementSelect.innerHTML = '';
+                if (placeholderOption) {
+                    reimbursementSelect.appendChild(placeholderOption);
+                }
+                
+                // 添加新选项
+                data.reimbursements.forEach(reimbursement => {
+                    const option = document.createElement('option');
+                    option.value = reimbursement.id;
+                    option.textContent = `报销单 #${reimbursement.id} (${reimbursement.submission_date})`;
+                    reimbursementSelect.appendChild(option);
+                });
+                
+                // 如果没有报销单，显示提示
+                if (data.reimbursements.length === 0) {
+                    const noOption = document.createElement('option');
+                    noOption.value = '';
+                    noOption.disabled = true;
+                    noOption.textContent = '暂无可用的草稿状态报销单';
+                    reimbursementSelect.appendChild(noOption);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('加载报销单列表失败:', error);
+        });
+}
 
 // 等待DOM加载完成后再执行JavaScript
 document.addEventListener('DOMContentLoaded', function() {
