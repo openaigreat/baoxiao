@@ -11,11 +11,22 @@ columns = cursor.fetchall()
 for column in columns:
     print(column)
 
-# 也查看一下是否有其他相关表
+# 查看所有表
 print("\n所有表:")
 cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
 tables = cursor.fetchall()
 for table in tables:
     print(table[0])
+
+# 查询sqlite_sequence表内容
+print("\nsqlite_sequence表内容:")
+cursor.execute("SELECT * FROM sqlite_sequence;")
+sequence_data = cursor.fetchall()
+print(f"数据量: {len(sequence_data)} 条")
+if sequence_data:
+    print("表名\t| 下一个ID")
+    print("-" * 30)
+    for row in sequence_data:
+        print(f"{row[0]}\t| {row[1]}")
 
 conn.close()

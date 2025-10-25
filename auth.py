@@ -1,8 +1,13 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
-from models import get_db
+from flask import Blueprint, render_template, redirect, request, session, flash
+import sqlite3
 import hashlib
 
 bp = Blueprint('auth', __name__)
+
+def get_db():
+    conn = sqlite3.connect('database.db')
+    conn.row_factory = sqlite3.Row
+    return conn
 
 def check_password(input_password, stored_hash):
     """验证密码哈希"""
@@ -11,8 +16,8 @@ def check_password(input_password, stored_hash):
 
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
-    if 'user_id' in session:
-        return redirect(url_for('index'))
+    if 'username' in session:
+        return redirect('/')
     
     if request.method == 'POST':
         username = request.form['username']
@@ -25,9 +30,8 @@ def login():
         conn.close()
         
         if user and check_password(password, user['password']):
-            session['user_id'] = user['id']
             session['username'] = username
-            return redirect(url_for('index'))
+            return redirect('/')
         else:
             flash('用户名或密码错误')
     
@@ -35,14 +39,13 @@ def login():
 
 @bp.route('/logout')
 def logout():
-    session.pop('user_id', None)
     session.pop('username', None)
-    return redirect(url_for('auth.login'))
+    return redirect('/login')
 
 @bp.route('/change_password', methods=['GET', 'POST'])
 def change_password():
-    if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
+    if 'username' not in session:
+        return redirect('/login')
     
     if request.method == 'POST':
         old_password = request.form['old_password']
@@ -57,7 +60,7 @@ def change_password():
         # 获取当前用户信息
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],))
+        cursor.execute('SELECT * FROM users WHERE username = ?', (session['username'],))
         user = cursor.fetchone()
         
         # 验证旧密码
@@ -69,14 +72,14 @@ def change_password():
         # 更新密码
         new_password_hash = hashlib.sha256(new_password.encode()).hexdigest()
         cursor.execute(
-            'UPDATE users SET password = ? WHERE id = ?',
-            (new_password_hash, session['user_id'])
+            'UPDATE users SET password = ? WHERE username = ?',
+            (new_password_hash, session['username'])
         )
         conn.commit()
         conn.close()
         
         flash('密码修改成功')
-        return redirect(url_for('index'))
+        return redirect('/')
     
     return render_template('change_password.html')
 
@@ -84,8 +87,8 @@ def change_password():
 def login_required(f):
     """装饰器：确保用户已登录"""
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('auth.login'))
+        if 'username' not in session:
+            return redirect('/login')
         return f(*args, **kwargs)
     decorated_function.__name__ = f.__name__
     return decorated_function

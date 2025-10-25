@@ -54,12 +54,20 @@
         <div class="container">
             <a class="navbar-brand" href="/">报销自用</a>
     
-            <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
-                <div class="navbar-nav">
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="navbar-nav mr-auto">
                     <a class="nav-link" href="/add_expense">记录支出</a>
                     <a class="nav-link" href="/stats">项目统计</a>
                     <a class="nav-link" href="/category_stats">费用分类</a>
                     <a class="nav-link" href="/reimbursements">报销管理</a>
+                </div>
+                
+                <div class="navbar-nav ms-auto">
+                    {% if session.username %}
+                        <span class="nav-link disabled me-2">欢迎, {{ session.username }}</span>
+                        <a class="nav-link" href="/change_password">修改密码</a>
+                        <a class="nav-link text-danger" href="/logout">登出</a>
+                    {% endif %}
                 </div>
             </div>
         </div>

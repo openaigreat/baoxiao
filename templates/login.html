@@ -1,25 +1,24 @@
-{% extends "base.html" %}
 
 {% block content %}
-<div class="card shadow" style="max-width: 500px; margin: 0 auto;">
+<div class="card shadow" style="max-width: 500px; margin: 0 auto; margin-top: 100px;">
     <div class="card-body">
-        <h2 class="card-title mb-4">用户登录</h2>
+        
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert alert-danger mb-4">
+                    {{ messages[0] }}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
         <form method="POST" action="/login">
             <div class="mb-3">
-                {% for user in users %}
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" 
-                           name="username" id="user{{ loop.index }}" 
-                           value="{{ user.username }}" required>
-                    <label class="form-check-label" for="user{{ loop.index }}">
-                        {{ user.username }}
-                    </label>
-                </div>
-                {% endfor %}
+                <label for="username" class="form-label">用户名</label>
+                <input type="text" id="username" name="username" class="form-control" required autofocus>
             </div>
             <div class="mb-3">
-                <label class="form-label">密码</label>
-                <input type="password" name="password" class="form-control" required>
+                <label for="password" class="form-label">密码</label>
+                <input type="password" id="password" name="password" class="form-control" required>
             </div>
             <button type="submit" class="btn btn-primary w-100">登录</button>
         </form>
