@@ -224,6 +224,43 @@
 </div>
 
 <script>
+// 创建一个临时通知元素的函数
+function showNotification(message, type = 'success') {
+    // 创建通知元素
+    const notification = document.createElement('div');
+    notification.className = `notification-toast alert alert-${type} z-50 p-4 shadow-lg rounded text-center`;
+    notification.style.position = 'fixed';
+    notification.style.top = '50%';
+    notification.style.left = '50%';
+    notification.style.transform = 'translate(-50%, -50%) scale(0.8)';
+    notification.style.zIndex = '9999';
+    notification.style.minWidth = '300px';
+    notification.style.maxWidth = '90%';
+    notification.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    notification.style.opacity = '0';
+    notification.innerText = message;
+    
+    // 添加到文档中
+    document.body.appendChild(notification);
+    
+    // 显示通知
+    setTimeout(() => {
+        notification.style.opacity = '1';
+        notification.style.transform = 'translate(-50%, -50%) scale(1)';
+    }, 10);
+    
+    // 设置自动消失
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translate(-50%, -50%) scale(0.8)';
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
+}
+
 // 处理移除支出记录
 const removeButtons = document.querySelectorAll('.remove-expense');
 removeButtons.forEach(button => {
@@ -246,13 +283,17 @@ removeButtons.forEach(button => {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                location.reload();
+                showNotification('✅ 移除成功！');
+                // 延迟刷新页面
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
             } else {
-                alert('移除失败: ' + data.error);
+                showNotification('移除失败: ' + data.error, 'danger');
             }
         })
         .catch(error => {
-            alert('提交失败: ' + error);
+            showNotification('提交失败: ' + error, 'danger');
         });
     });
 });
@@ -278,19 +319,20 @@ if (paymentForm) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('回款记录添加成功');
+                showNotification('✅ 回款记录添加成功！');
                 // 重置表单
                 paymentForm.reset();
-                // 刷新页面以显示最新数据
-                location.reload();
+                // 延迟刷新页面以显示最新数据
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
             } else {
-                alert('添加失败: ' + data.error);
+                showNotification('添加失败: ' + data.error, 'danger');
             }
         })
         .catch(error => {
-            alert('提交失败: ' + error);
+            showNotification('提交失败: ' + error, 'danger');
         });
     });
-}
-</script>
+}</script>
 {% endblock %}
