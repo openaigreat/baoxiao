@@ -393,6 +393,43 @@ document.getElementById('add-project-form').addEventListener('submit', function(
     });
 });
 
+// 创建一个临时通知元素的函数
+function showNotification(message, type = 'success') {
+    // 创建通知元素
+    const notification = document.createElement('div');
+    notification.className = `notification-toast alert alert-${type} z-50 p-4 shadow-lg rounded text-center`;
+    notification.style.position = 'fixed';
+    notification.style.top = '50%';
+    notification.style.left = '50%';
+    notification.style.transform = 'translate(-50%, -50%) scale(0.8)';
+    notification.style.zIndex = '9999';
+    notification.style.minWidth = '300px';
+    notification.style.maxWidth = '90%';
+    notification.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    notification.style.opacity = '0';
+    notification.innerText = message;
+    
+    // 添加到文档中
+    document.body.appendChild(notification);
+    
+    // 显示通知
+    setTimeout(() => {
+        notification.style.opacity = '1';
+        notification.style.transform = 'translate(-50%, -50%) scale(1)';
+    }, 10);
+    
+    // 设置自动消失
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translate(-50%, -50%) scale(0.8)';
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
+}
+
 // 为分配项目表单添加提交事件监听器
 document.getElementById('assign-project-form').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -419,14 +456,17 @@ document.getElementById('assign-project-form').addEventListener('submit', functi
             if (projectModal) {
                 projectModal.hide();
             }
-            alert('成功归属 ' + data.count + ' 条记录');
-            window.location.reload();
+            showNotification(data.message || `🎉 成功归属 ${data.count} 条记录`);
+            // 延迟刷新页面，让用户有时间看到通知
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
         } else {
-            alert('归属失败: ' + data.error);
+            showNotification(data.error || '❌ 归属失败', 'danger');
         }
     })
     .catch(error => {
-        alert('提交失败: ' + error);
+        showNotification('❌ 提交失败，请重试', 'danger');
     });
 });
 
@@ -476,6 +516,8 @@ function updateCategoryOptions() {
     }
 }
 
+
+
 // 为批量更新费用类别表单添加提交事件监听器
 document.getElementById('batch-category-form').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -502,14 +544,20 @@ document.getElementById('batch-category-form').addEventListener('submit', functi
             if (categoryModal) {
                 categoryModal.hide();
             }
-            alert('成功更新 ' + data.count + ' 条费用类别');
-            window.location.reload();
+            // 使用自定义通知代替alert
+            showNotification(data.message || `🎉 成功更新 ${data.count} 条费用类别！`, 'success');
+            // 延迟刷新页面，让用户看到通知
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
         } else {
-            alert('更新失败: ' + data.error);
+            // 使用自定义通知代替alert
+            showNotification(data.error || '更新失败', 'danger');
         }
     })
     .catch(error => {
-        alert('提交失败: ' + error);
+        // 使用自定义通知代替alert
+        showNotification('❌ 提交失败: ' + error, 'danger');
     });
 });
 
@@ -599,14 +647,17 @@ batchReimbursementBtn.addEventListener('click', function() {
                 if (modal) {
                     modal.hide();
                 }
-                alert('成功添加 ' + data.count + ' 条记录到报销单');
-                window.location.reload();
+                showNotification(`🎉 成功添加 ${data.count} 条记录到报销单`);
+                // 延迟刷新页面，让用户有时间看到通知
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
             } else {
-                alert('添加失败: ' + data.error);
+                showNotification('❌ 添加失败: ' + data.error, 'danger');
             }
         })
         .catch(error => {
-            alert('提交失败: ' + error);
+            showNotification('❌ 提交失败: ' + error, 'danger');
         });
     });
 
@@ -688,14 +739,17 @@ batchReimbursementBtn.addEventListener('click', function() {
                     if (modal) {
                         modal.hide();
                     }
-                    alert('成功创建报销单并添加 ' + data.count + ' 条记录');
+                    showNotification(`🎉 成功创建报销单并添加 ${data.count} 条记录`);
+                // 延迟刷新页面，让用户有时间看到通知
+                setTimeout(() => {
                     window.location.reload();
+                }, 1000);
                 } else {
-                    alert('创建失败: ' + data.error);
+                    showNotification('❌ 创建失败: ' + data.error, 'danger');
                 }
             })
             .catch(error => {
-                alert('提交失败: ' + error);
+                showNotification('❌ 提交失败: ' + error, 'danger');
             });
         });
     });

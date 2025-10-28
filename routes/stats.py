@@ -325,21 +325,29 @@ def batch_update_categories():
         '''.format(placeholders=placeholders), expense_ids + [new_category] + [session['user_id']]).fetchone()[0]
         
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            # 对于AJAX请求，返回JSON响应
-            return jsonify({'success': True, 'count': updated_count})
+            # 对于AJAX请求，返回JSON响应，增加成功消息
+            return jsonify({
+                'success': True, 
+                'count': updated_count,
+                'message': f'🎉 成功更新 {updated_count} 条记录的费用类别！'
+            })
         else:
-            # 对于普通请求，使用flash消息
-            flash(f'成功更新 {updated_count} 条记录的费用类别', 'success')
+            # 对于普通请求，使用flash消息，增加emoji和详细信息
+            flash(f'🎉 成功更新 {updated_count} 条记录的费用类别！', 'success')
             # 添加多层回退机制
             return redirect(url_for('stats.category_stats'))
     except Exception as e:
         conn.rollback()
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            # 对于AJAX请求，返回JSON错误响应
-            return jsonify({'success': False, 'error': str(e)})
+            # 对于AJAX请求，返回JSON错误响应，使用更友好的错误消息
+            return jsonify({
+                'success': False, 
+                'error': f'❌ 更新失败: {str(e)}',
+                'message': '请稍后重试或联系管理员'
+            })
         else:
-            # 对于普通请求，使用flash消息
-            flash(f'更新失败: {str(e)}', 'danger')
+            # 对于普通请求，使用flash消息，使用更友好的错误消息
+            flash(f'❌ 更新失败: {str(e)}', 'danger')
             return redirect(url_for('stats.category_stats'))
     finally:
         conn.close()
@@ -468,7 +476,7 @@ def batch_assign_project():
         
         # 处理AJAX响应（只检查X-Requested-With头，因为request.is_xhr在新版Flask中已被移除）
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': True, 'count': updated_count, 'message': f'成功分配 {updated_count} 条支出到项目'})
+            return jsonify({'success': True, 'count': updated_count, 'message': f'🎉 成功分配 {updated_count} 条支出到项目'})
         
         # 获取来源URL，判断重定向目标
         referrer = request.headers.get('Referer')
@@ -489,7 +497,7 @@ def batch_assign_project():
     except Exception as e:
         logging.error(f"Error in batch_assign_project: {e}")
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': False, 'error': '操作失败'})
+            return jsonify({'success': False, 'error': '❌ 操作失败，请重试'})
         # 如果是普通请求，直接返回错误页面
         return render_template('error.html', message='操作失败')
 
