@@ -4,8 +4,28 @@ from models import get_db
 
 bp = Blueprint('projects', __name__)
 
+@bp.route('/manage_projects')
+def manage_projects():
+    # 无需登录验证
+    # 为了兼容性，设置一个默认用户信息
+    if 'user_id' not in session:
+        session['user_id'] = 1
+        session['username'] = '默认用户'
+    
+    conn = get_db()
+    projects = conn.execute('SELECT id, name, status, note FROM projects ORDER BY name').fetchall()
+    conn.close()
+    
+    return render_template('projects.html', projects=projects)
+
 @bp.route('/add_project', methods=['GET', 'POST'])
 def add_project():
+    # 无需登录验证
+    # 为了兼容性，设置一个默认用户信息
+    if 'user_id' not in session:
+        session['user_id'] = 1
+        session['username'] = '默认用户'
+    
     # 检查是否为AJAX请求
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
@@ -17,9 +37,9 @@ def add_project():
         try:
             db = get_db()
             db.execute(
-                'INSERT INTO projects (name, amount, note) VALUES (?, ?, ?)',
-                (name, amount, note)
-            )
+            'INSERT INTO projects (name, note, status) VALUES (?, ?, ?)',
+            (name, note, '进行中')
+        )
             db.commit()
             
             if is_ajax:
@@ -41,7 +61,16 @@ def add_project():
     # GET请求
     if is_ajax:
         # 如果是AJAX请求，返回模态框内容
-        return render_template('add_project.html')
+        # GET请求返回所有项目列表
+        try:
+            db = get_db()
+            projects = db.execute(
+                'SELECT id, name, status FROM projects ORDER BY name'
+            ).fetchall()
+            return render_template('projects.html', projects=projects)
+        except Exception as e:
+            flash('获取项目列表失败: ' + str(e))
+            return render_template('stats.html')
     else:
         # 否则返回完整页面
         return render_template('add_project.html')
@@ -76,17 +105,19 @@ def edit_project(project_id):
         name = request.form['name']
         note = request.form.get('note', '')
         
+        status = request.form['status']
+        
         conn.execute('''
             UPDATE projects
-            SET name = ?, note = ?
+            SET name = ?, note = ?, status = ?
             WHERE id = ?
-        ''', (name, note, project_id))
+        ''', (name, note, status, project_id))
         conn.commit()
         conn.close()
         return redirect(url_for('stats.expenses', project_id=project_id))
     
     project = conn.execute('''
-        SELECT id, name, note FROM projects
+        SELECT id, name, note, status FROM projects
         WHERE id = ?
     ''', (project_id,)).fetchone()
     

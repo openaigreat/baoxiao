@@ -11,6 +11,14 @@
             </div>
             
             <div class="mb-3">
+                <label class="form-label">项目状态</label>
+                <select class="form-control" name="status" required>
+                    <option value="进行中" {% if project.status == '进行中' %}selected{% endif %}>进行中</option>
+                    <option value="已完成" {% if project.status == '已完成' %}selected{% endif %}>已完成</option>
+                </select>
+            </div>
+            
+            <div class="mb-3">
                 <label class="form-label">备注</label>
                 <textarea name="note" class="form-control" rows="2">{{ project.note }}</textarea>
             </div>

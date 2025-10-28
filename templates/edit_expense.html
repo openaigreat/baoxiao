@@ -32,8 +32,8 @@
             </div>
             <div class="mb-3">
                 <label class="form-label">用途</label>
-                <input type="text" name="purpose" class="form-control" 
-                       value="{{ expense.purpose }}" required>
+                <input type="text" name="description" class="form-control" 
+                       value="{{ expense.description }}" required>
             </div>
             <div class="mb-3">
                 <label class="form-label">费用类别</label>
@@ -83,7 +83,7 @@
             </div>
             <div class="mb-3">
                 <label class="form-label">备注</label>
-                <textarea name="note" class="form-control" rows="2">{{ expense.note }}</textarea>
+                <textarea name="note" class="form-control" rows="2">{{ expense.payment_method }}</textarea>
             </div>
             <button type="submit" class="btn btn-primary w-100">保存修改</button>
         </form>

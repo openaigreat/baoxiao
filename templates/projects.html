@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>项目管理</h2>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>项目列表</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>项目名称</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for project in projects %}
+                    <tr>
+                        <td>{{ project.name }}</td>
+                        <td>
+                            <span class="badge {% if project.status == '进行中' %}bg-primary{% else %}bg-success{% endif %}">
+                                {{ project.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('projects.edit_project', project_id=project.id) }}" class="btn btn-sm btn-info">编辑</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="text-center">
+        <a href="{{ url_for('projects.add_project') }}" class="btn btn-primary">添加新项目</a>
+    </div>
+</div>
+{% endblock %}

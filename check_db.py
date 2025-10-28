@@ -1,7 +1,7 @@
 import sqlite3
 
 # 连接到数据库
-conn = sqlite3.connect('database.db')
+conn = sqlite3.connect('instance/baoxiao.db')
 cursor = conn.cursor()
 
 # 查询projects表结构

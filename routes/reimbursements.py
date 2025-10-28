@@ -19,7 +19,7 @@ def fetch_reimbursements():
         reimbursements = conn.execute('''
             SELECT r.*,
                    COUNT(re.id) as expense_count,
-                   SUM(re.reimbursement_amount) as calculated_total
+                   COALESCE(SUM(re.reimbursement_amount), 0) as calculated_total
             FROM reimbursements r
             LEFT JOIN reimbursement_expenses re ON r.id = re.reimbursement_id
             WHERE r.status IN ('草稿', '已拒绝')
@@ -62,7 +62,7 @@ def reimbursements():
         query = '''
             SELECT r.*, 
                    COUNT(re.id) as expense_count,
-                   SUM(re.reimbursement_amount) as calculated_total,
+                   COALESCE(SUM(re.reimbursement_amount), 0) as calculated_total,
                    COALESCE(SUM(rp.amount), 0) as total_paid,
                    MAX(rp.payment_date) as latest_payment_date
             FROM reimbursements r
@@ -354,11 +354,11 @@ def add_expense_to_reimbursement():
             return jsonify({'success': False, 'error': '该支出记录已关联到其他报销单'})
         
         # 添加关联
-            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            conn.execute('''
-                INSERT INTO reimbursement_expenses (reimbursement_id, expense_id, reimbursement_amount, added_date)
-                VALUES (?, ?, ?, ?)
-            ''', (reimbursement_id, expense_id, reimbursement_amount, current_time))
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        conn.execute('''
+            INSERT INTO reimbursement_expenses (reimbursement_id, expense_id, reimbursement_amount, added_date)
+            VALUES (?, ?, ?, ?)
+        ''', (reimbursement_id, expense_id, reimbursement_amount, current_time))
         
         conn.commit()
         conn.close()

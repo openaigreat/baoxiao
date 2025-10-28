@@ -50,9 +50,9 @@
                             </a>
                         </th>
                         <th style="cursor: pointer;">
-                            <a href="{{ url_for('stats.expenses', project_id=project.id, sort_by='purpose', sort_order=next_sort_order if current_sort == 'purpose' else 'asc') }}">
+                            <a href="{{ url_for('stats.expenses', project_id=project.id, sort_by='description', sort_order=next_sort_order if current_sort == 'description' else 'asc') }}">
                                 用途
-                                {% if current_sort == 'purpose' %}
+                                {% if current_sort == 'description' %}
                                     <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
                                 {% else %}
                                     <i class="bi bi-sort"></i>

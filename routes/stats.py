@@ -15,21 +15,29 @@ def stats():
         session['username'] = '默认用户'
     
     conn = get_db()
-    # 获取项目统计
+    # 获取项目统计，包括已提交金额
     project_stats = conn.execute('''
-        SELECT p.id, p.name, p.amount AS project_amount,
-               SUM(e.amount) AS total_expense, p.note
+        SELECT p.id, p.name,
+               SUM(e.amount) AS total_expense,
+               SUM(CASE WHEN re.expense_id IS NOT NULL THEN e.amount ELSE 0 END) AS submitted_amount,
+               p.note, p.status
         FROM projects p
         LEFT JOIN expenses e ON p.id = e.project_id
+        LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
         GROUP BY p.id
     ''').fetchall()
     
-    # 获取无项目支出统计
-    orphan_total = conn.execute('''
-        SELECT SUM(amount) AS total_expense
-        FROM expenses
-        WHERE project_id IS NULL
-    ''').fetchone()['total_expense'] or 0
+    # 获取无项目支出统计，包括已提交金额
+    orphan_stats = conn.execute('''
+        SELECT SUM(e.amount) AS total_expense,
+               SUM(CASE WHEN re.expense_id IS NOT NULL THEN e.amount ELSE 0 END) AS submitted_amount
+        FROM expenses e
+        LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
+        WHERE e.project_id IS NULL
+    ''').fetchone()
+    
+    orphan_total = orphan_stats['total_expense'] or 0
+    orphan_submitted = orphan_stats['submitted_amount'] or 0
     
     # 初始化统计结果列表
     stats = []
@@ -37,15 +45,18 @@ def stats():
     # 如果有无项目支出，将其添加到统计结果的最前面
     if orphan_total > 0:
         # 使用字典模拟Row对象来显示无项目支出
-        orphan_record = {'id': None, 'name': '无项目支出', 'project_amount': 0, 'total_expense': orphan_total, 'note': ''}
+        orphan_record = {'id': None, 'name': '无项目支出', 'project_amount': 0, 
+                        'total_expense': orphan_total, 'submitted_amount': orphan_submitted, 'note': ''}
         stats.append(orphan_record)
     
     # 添加正常项目统计，并处理None值
     for project in project_stats:
         # 转换Row对象为字典，并处理None值
         project_dict = dict(project)
-        project_dict['project_amount'] = project_dict.get('project_amount', 0) or 0
+        # 设置默认的项目预算金额为0
+        project_dict['project_amount'] = 0
         project_dict['total_expense'] = project_dict.get('total_expense', 0) or 0
+        project_dict['submitted_amount'] = project_dict.get('submitted_amount', 0) or 0
         stats.append(project_dict)
     
     conn.close()
@@ -64,9 +75,18 @@ def expenses(project_id):
     sort_order = request.args.get('sort_order', 'asc')  # 默认正序
     
     # 验证排序字段
-    valid_sort_fields = ['category', 'date', 'purpose', 'amount', 'note']
-    if sort_by not in valid_sort_fields:
+    valid_sort_fields = ['category', 'date', 'description', 'amount', 'payment_method']
+    # 保存原始排序字段用于模板显示
+    original_sort_by = sort_by
+    # 允许使用'purpose'作为排序字段（内部会映射到'description'）
+    if sort_by == 'purpose':
+        sort_by = 'description'
+    # 允许使用'note'作为排序字段（内部会映射到'payment_method'）
+    elif sort_by == 'note':
+        sort_by = 'payment_method'
+    elif sort_by not in valid_sort_fields:
         sort_by = 'category'
+        original_sort_by = 'category'
     
     # 验证排序顺序
     if sort_order not in ['asc', 'desc']:
@@ -80,8 +100,11 @@ def expenses(project_id):
     ''', (project_id,)).fetchone()
     
     # 构建带排序的SQL查询，只返回未报销的支出记录
+    # 根据expenses.py中的实现，description字段存储purpose内容，payment_method字段存储note内容
     query = f'''
-        SELECT e.*, CASE WHEN re.expense_id IS NOT NULL THEN 1 ELSE 0 END as reimbursement_status
+        SELECT e.id, e.date, e.category, e.amount, e.description as purpose, e.project_id, 
+               e.created_at, e.created_by, CASE WHEN re.expense_id IS NOT NULL THEN 1 ELSE 0 END as reimbursement_status,
+               e.payment_method as note
         FROM expenses e
         LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
         WHERE e.project_id = ? AND re.reimbursement_id IS NULL
@@ -91,12 +114,13 @@ def expenses(project_id):
     
     expenses = conn.execute(query, params).fetchall()
     
-    # 获取所有项目列表，用于归属项目选择
+    # 获取所有进行中的项目列表，用于归属项目选择
     projects = conn.execute('''
         SELECT id, name
         FROM projects
+        WHERE status = ?
         ORDER BY name
-    ''').fetchall()
+    ''', ('进行中',)).fetchall()
     
     total_amount = sum(expense['amount'] for expense in expenses)  # 使用字典访问方式
     
@@ -113,7 +137,7 @@ def expenses(project_id):
                            project=project, 
                            total_amount=total_amount, 
                            projects=projects,
-                           current_sort=sort_by,
+                           current_sort=original_sort_by,
                            current_order=sort_order,
                            next_sort_order=next_sort_order)
 
@@ -147,7 +171,7 @@ def category_stats():
             COUNT(*) as count,
             SUM(amount) as total_amount
         FROM expenses
-        WHERE user_id = ?
+        WHERE created_by = ?
         GROUP BY category
         ORDER BY {sort_by} {sort_order}
     '''
@@ -158,7 +182,7 @@ def category_stats():
     total_expenses = conn.execute('''
         SELECT SUM(amount) as total
         FROM expenses
-        WHERE user_id = ?
+        WHERE created_by = ?
     ''', (session['user_id'],)).fetchone()['total'] or 0
     
     # 计算下一次点击的排序顺序
@@ -186,7 +210,7 @@ def category_expenses(category_name):
     sort_order = request.args.get('sort_order', 'asc')
     
     # 验证排序参数
-    valid_sort_fields = ['project_name', 'date', 'category', 'purpose', 'amount', 'note']
+    valid_sort_fields = ['project_name', 'date', 'category', 'purpose', 'amount', 'note', 'payment_method']
     if sort_by not in valid_sort_fields:
         sort_by = 'project_name'
     
@@ -196,12 +220,16 @@ def category_expenses(category_name):
     conn = get_db()
     
     # 获取该类别的所有费用记录，支持动态排序，并左连接报销表以获取报销状态
+    # 根据expenses.py中的实现，description字段存储purpose内容，payment_method字段存储note内容
     query = f'''
-        SELECT e.*, p.name as project_name, CASE WHEN re.expense_id IS NOT NULL THEN 1 ELSE 0 END as reimbursement_status
+        SELECT e.id, e.date, e.category, e.amount, e.description as purpose, e.project_id, 
+               e.created_at, e.created_by, p.name as project_name, 
+               CASE WHEN re.expense_id IS NOT NULL THEN 1 ELSE 0 END as reimbursement_status,
+               e.payment_method as note
         FROM expenses e
         LEFT JOIN projects p ON e.project_id = p.id
         LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
-        WHERE e.user_id = ? AND e.category = ?
+        WHERE e.created_by = ? AND e.category = ?
         ORDER BY {sort_by} {sort_order}
     '''
     params = (session['user_id'], category_name)
@@ -212,15 +240,16 @@ def category_expenses(category_name):
     total_amount = conn.execute('''
         SELECT SUM(amount) as total
         FROM expenses
-        WHERE user_id = ? AND category = ?
+        WHERE created_by = ? AND category = ?
     ''', (session['user_id'], category_name)).fetchone()['total'] or 0
     
-    # 获取所有项目列表，用于批量修改
+    # 获取所有进行中的项目列表，用于批量修改
     projects = conn.execute('''
         SELECT id, name
         FROM projects
+        WHERE status = ?
         ORDER BY name
-    ''').fetchall()
+    ''', ('进行中',)).fetchall()
     
     conn.close()
     
@@ -285,14 +314,14 @@ def batch_update_categories():
         conn.execute(f'''
             UPDATE expenses
             SET category = ?
-            WHERE id IN ({placeholders}) AND user_id = ?
+            WHERE id IN ({placeholders}) AND created_by = ?
         ''', [new_category] + expense_ids + [session['user_id']])
         conn.commit()
         
         updated_count = conn.execute('''
             SELECT COUNT(*)
             FROM expenses
-            WHERE id IN ({placeholders}) AND category = ? AND user_id = ?
+            WHERE id IN ({placeholders}) AND category = ? AND created_by = ?
         '''.format(placeholders=placeholders), expense_ids + [new_category] + [session['user_id']]).fetchone()[0]
         
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -328,9 +357,18 @@ def orphan_expenses():
     sort_order = request.args.get('sort_order', 'asc')  # 默认正序
     
     # 验证排序字段
-    valid_sort_fields = ['date', 'purpose', 'category', 'amount', 'note']
-    if sort_by not in valid_sort_fields:
+    valid_sort_fields = ['date', 'description', 'category', 'amount', 'payment_method']
+    # 保存原始排序字段用于模板显示
+    original_sort_by = sort_by
+    # 允许使用'purpose'作为排序字段（内部会映射到'description'）
+    if sort_by == 'purpose':
+        sort_by = 'description'
+    # 允许使用'note'作为排序字段（内部会映射到'payment_method'）
+    elif sort_by == 'note':
+        sort_by = 'payment_method'
+    elif sort_by not in valid_sort_fields:
         sort_by = 'date'
+        original_sort_by = 'date'
     
     # 验证排序顺序
     if sort_order not in ['asc', 'desc']:
@@ -340,7 +378,7 @@ def orphan_expenses():
     try:
         # 构建带排序的SQL查询，并左连接报销表以获取报销状态
         query = f'''
-            SELECT e.id, e.date, e.purpose, e.amount, e.note, e.user_id, e.category, 
+            SELECT e.id, e.date, e.description as purpose, e.amount, e.payment_method as note, e.created_by, e.category, 
                    CASE WHEN re.expense_id IS NOT NULL THEN 1 ELSE 0 END as reimbursement_status
             FROM expenses e
             LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
@@ -350,12 +388,13 @@ def orphan_expenses():
         orphan_expenses = conn.execute(query).fetchall()
         total_amount = sum(expense['amount'] for expense in orphan_expenses)  # 使用字典访问方式
         
-        # 获取项目列表，用于归属项目选择
+        # 获取进行中的项目列表，用于归属项目选择
         projects = conn.execute('''
             SELECT id, name
             FROM projects
+            WHERE status = ?
             ORDER BY name
-        ''').fetchall()
+        ''', ('进行中',)).fetchall()
     except Exception as e:
         logging.error(f"Error fetching orphan expenses details: {e}")
         orphan_expenses = []
@@ -367,13 +406,17 @@ def orphan_expenses():
     # 计算下一次点击的排序顺序
     next_sort_order = 'desc' if sort_order == 'asc' else 'asc'
     
+    # 获取记录数量
+    expense_count = len(orphan_expenses)
+    
     return render_template('orphan_expenses.html', 
                            expenses=orphan_expenses, 
                            total_amount=total_amount, 
                            projects=projects,
-                           current_sort=sort_by,
+                           current_sort=original_sort_by,
                            current_order=sort_order,
-                           next_sort_order=next_sort_order)
+                           next_sort_order=next_sort_order,
+                           expense_count=expense_count)
 
 @bp.route('/batch_assign_project', methods=['POST'])
 def batch_assign_project():
@@ -469,9 +512,9 @@ def edit_expense(expense_id):
         
         conn.execute('''
             UPDATE expenses
-            SET date = ?, project_id = ?, purpose = ?, amount = ?, note = ?, category = ?
-            WHERE id = ?
-        ''', (date, project_id, purpose, amount, note, request.form['category'], expense_id))
+            SET date = ?, project_id = ?, description = ?, amount = ?, payment_method = ?, category = ?
+            WHERE id = ? AND created_by = ?
+        ''', (date, project_id, request.form.get('description', purpose), amount, request.form.get('note', ''), request.form['category'], expense_id, session['user_id']))
         conn.commit()
         conn.close()
         return redirect(url_for('stats.stats'))
@@ -486,7 +529,8 @@ def edit_expense(expense_id):
     projects = conn.execute('''
         SELECT id, name
         FROM projects
-    ''').fetchall()
+        WHERE status = ?
+    ''', ('进行中',)).fetchall()
     
     conn.close()
     
@@ -525,7 +569,8 @@ def delete_expense(expense_id):
     return redirect(url_for('stats.stats'))
 
 @bp.route('/date_expenses/<date>')
-def date_expenses(date):
+@bp.route('/date_expenses/')
+def date_expenses(date=None):
     # 无需登录验证
     # 为了兼容性，设置一个默认用户信息
     if 'user_id' not in session:
@@ -533,41 +578,77 @@ def date_expenses(date):
         session['username'] = '默认用户'
     
     # 获取排序参数
-    sort_by = request.args.get('sort_by', 'project_name')
+    # 获取排序参数并保存原始字段名
+    original_sort_by = request.args.get('sort_by', 'project_name')
     sort_order = request.args.get('sort_order', 'asc')
     
-    # 验证排序参数
+    # 验证排序参数并进行字段映射
     valid_sort_fields = ['project_name', 'date', 'category', 'purpose', 'amount', 'note']
-    if sort_by not in valid_sort_fields:
+    
+    # 字段映射：将前端显示的字段名映射到数据库实际列名
+    field_mapping = {
+        'purpose': 'description',
+        'note': 'payment_method'
+    }
+    
+    # 设置排序字段，应用映射
+    if original_sort_by in valid_sort_fields:
+        sort_by = field_mapping.get(original_sort_by, original_sort_by)
+    else:
         sort_by = 'project_name'
+        original_sort_by = 'project_name'
     
     if sort_order not in ['asc', 'desc']:
         sort_order = 'asc'
     
     conn = get_db()
     
-    # 获取该日期的所有费用记录，支持动态排序，并左连接报销表以获取报销状态
-    query = f'''
-        SELECT e.*, p.name as project_name, CASE WHEN re.expense_id IS NOT NULL THEN 1 ELSE 0 END as reimbursement_status
-        FROM expenses e
-        LEFT JOIN projects p ON e.project_id = p.id
-        LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
-        WHERE e.user_id = ? AND e.date = ?
-        ORDER BY {sort_by} {sort_order}
-    '''
-    params = (session['user_id'], date)
+    # 根据是否提供日期参数构建不同的查询
+    if date:
+        # 获取特定日期的所有费用记录
+        query = f'''
+            SELECT e.*, p.name as project_name, e.description as purpose, e.payment_method as note, 
+                   CASE WHEN re.expense_id IS NOT NULL THEN 1 ELSE 0 END as reimbursement_status
+            FROM expenses e
+            LEFT JOIN projects p ON e.project_id = p.id
+            LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
+            WHERE e.created_by = ? AND e.date = ?
+            ORDER BY {sort_by} {sort_order}
+        '''
+        params = (session['user_id'], date)
+        
+        expenses = conn.execute(query, params).fetchall()
+        
+        # 获取总金额
+        total_amount = conn.execute('''
+            SELECT SUM(amount) as total
+            FROM expenses
+            WHERE created_by = ? AND date = ?
+        ''', (session['user_id'], date)).fetchone()['total'] or 0
+    else:
+        # 获取所有日期的费用记录
+        query = f'''
+            SELECT e.*, p.name as project_name, e.description as purpose, e.payment_method as note, 
+                   CASE WHEN re.expense_id IS NOT NULL THEN 1 ELSE 0 END as reimbursement_status
+            FROM expenses e
+            LEFT JOIN projects p ON e.project_id = p.id
+            LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
+            WHERE e.created_by = ?
+            ORDER BY {sort_by} {sort_order}
+        '''
+        params = (session['user_id'],)
+        
+        expenses = conn.execute(query, params).fetchall()
+        
+        # 获取总金额
+        total_amount = conn.execute('''
+            SELECT SUM(amount) as total
+            FROM expenses
+            WHERE created_by = ?
+        ''', (session['user_id'],)).fetchone()['total'] or 0
     
-    expenses = conn.execute(query, params).fetchall()
-    
-    # 获取总金额
-    total_amount = conn.execute('''
-        SELECT SUM(amount) as total
-        FROM expenses
-        WHERE user_id = ? AND date = ?
-    ''', (session['user_id'], date)).fetchone()['total'] or 0
-    
-    # 获取所有项目列表，用于批量分配功能
-    projects = conn.execute('SELECT id, name FROM projects ORDER BY name').fetchall()
+    # 获取所有进行中的项目列表，用于批量分配功能
+    projects = conn.execute('SELECT id, name FROM projects WHERE status = ? ORDER BY name', ('进行中',)).fetchall()
     
     conn.close()
     
@@ -578,7 +659,7 @@ def date_expenses(date):
                          expenses=expenses, 
                          target_date=date,
                          total_amount=total_amount,
-                         current_sort=sort_by,
+                         current_sort=original_sort_by,
                          current_order=sort_order,
                          next_sort_order=next_sort_order,
                          projects=projects)

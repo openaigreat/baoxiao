@@ -35,21 +35,21 @@ def add_expense():
             session['last_date'] = date
             
             conn.execute('''
-                INSERT INTO expenses (date, project_id, purpose, amount, note, user_id, category)
+                INSERT INTO expenses (date, project_id, description, amount, payment_method, category, created_by)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', (
                 date,
                 project_id,
                 request.form['purpose'],
                 float(request.form['amount']),
-                request.form['note'],
-                1,  # 使用固定值1，避免引用users表
-                request.form['category']
+                request.form.get('note', ''),  # 使用payment_method列存储note内容
+                request.form['category'],
+                1  # 使用固定值1作为created_by
             ))
             conn.commit()
             return redirect(url_for('stats.stats'))
         
-        projects = conn.execute('SELECT id, name FROM projects').fetchall()
+        projects = conn.execute('SELECT id, name FROM projects WHERE status = ?', ('进行中',)).fetchall()
         current_date = datetime.now().strftime('%Y-%m-%d')  # 使用 datetime 模块
         return render_template('add_expense.html', 
                             projects=projects,
@@ -248,14 +248,14 @@ def import_expense_final():
                 # === 插入数据库 ===
                 conn.execute('''
                     INSERT INTO expenses 
-                    (date, project_id, purpose, amount, note, user_id, category)
+                    (date, project_id, description, amount, payment_method, created_by, category)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     date,
                     project_id,
                     purpose,
                     amount,
-                    note,
+                    note,  # 使用payment_method列存储note内容
                     session['user_id'],  # 自动关联当前用户
                     category  # 使用映射的类别或默认值
                 ))
@@ -302,7 +302,7 @@ def edit_expense(expense_id):
     try:
         expense = conn.execute('''
             SELECT * FROM expenses 
-            WHERE id = ? AND user_id = ?
+            WHERE id = ? AND created_by = ?
         ''', (expense_id, session['user_id'])).fetchone()
         
         if not expense:
@@ -319,24 +319,24 @@ def edit_expense(expense_id):
                 UPDATE expenses SET
                     date = ?,
                     project_id = ?,
-                    purpose = ?,
+                    description = ?,
                     amount = ?,
-                    note = ?,
+                    payment_method = ?,
                     category = ?
                 WHERE id = ?
             ''', (
                 request.form['date'],
                 project_id,
-                request.form['purpose'],
+                request.form['description'],  # 使用description字段
                 float(request.form['amount']),
-                request.form['note'],
+                request.form.get('note', ''),  # 使用note字段的值存储到payment_method列
                 request.form['category'],
                 expense_id
             ))
             conn.commit()
             return redirect(url_for('stats.stats'))
         
-        projects = conn.execute('SELECT id, name FROM projects').fetchall()
+        projects = conn.execute('SELECT id, name FROM projects WHERE status = ?', ('进行中',)).fetchall()
         return render_template('edit_expense.html', 
                              expense=expense, 
                              projects=projects)
