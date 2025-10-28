@@ -15,6 +15,7 @@
                         <th>项目信息</th>
                         <th>状态</th>
                         <th>支出总额</th>
+                        <th>未报销金额</th>
                         <th>已提交金额</th>
                         <th>已收款</th>
                         <th>未收款</th>
@@ -34,9 +35,10 @@
                                 </span>
                             </td>
                             <td>{{ "¥%.2f"|format(item.total_expense or 0) }}</td>
+                            <td>{{ "¥%.2f"|format((item.total_expense or 0) - (item.submitted_amount or 0)) }}</td>
                             <td>{{ "¥%.2f"|format(item.submitted_amount or 0) }}</td>
                             <td>{{ "¥%.2f"|format(item.project_amount) }}</td>
-                            <td>{{ "¥%.2f"|format(item.project_amount - (item.total_expense or 0)) }}</td>
+                            <td>{{ "¥%.2f"|format((item.submitted_amount or 0) - (item.project_amount)) }}</td>
                             <td>{{ item.note }}</td>
                             <td>
                                 <a href="{{ url_for('stats.orphan_expenses') }}" class="btn btn-sm btn-outline-primary">
@@ -58,9 +60,10 @@
                                 </span>
                             </td>
                             <td>{{ "¥%.2f"|format(item.total_expense or 0) }}</td>
+                            <td>{{ "¥%.2f"|format((item.total_expense or 0) - (item.submitted_amount or 0)) }}</td>
                             <td>{{ "¥%.2f"|format(item.submitted_amount or 0) }}</td>
                             <td>{{ "¥%.2f"|format(item.project_amount) }}</td>
-                            <td>{{ "¥%.2f"|format(item.project_amount - (item.total_expense or 0)) }}</td>
+                            <td>{{ "¥%.2f"|format((item.submitted_amount or 0) - (item.project_amount)) }}</td>
                             <td>{{ item.note }}</td>
                             <td>
                                 <a href="{{ url_for('stats.expenses', project_id=item.id) }}" class="btn btn-sm btn-outline-primary">
@@ -76,9 +79,10 @@
                         <td>总计</td>
                         <td></td> <!-- 状态列 -->
                         <td>{{ "¥%.2f"|format(stats|sum(attribute='total_expense', start=0)) }}</td>
+                        <td>{{ "¥%.2f"|format(stats|sum(attribute='total_expense', start=0) - stats|sum(attribute='submitted_amount', start=0)) }}</td>
                         <td>{{ "¥%.2f"|format(stats|sum(attribute='submitted_amount', start=0)) }}</td>
                         <td>{{ "¥%.2f"|format(stats|sum(attribute='project_amount', start=0)) }}</td>
-                        <td>{{ "¥%.2f"|format(stats|sum(attribute='project_amount', start=0) - stats|sum(attribute='total_expense', start=0)) }}</td>
+                        <td>{{ "¥%.2f"|format(stats|sum(attribute='submitted_amount', start=0) - stats|sum(attribute='project_amount', start=0)) }}</td>
                         <td colspan="2"></td>
                     </tr>
                 </tfoot>

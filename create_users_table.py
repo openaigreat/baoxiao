@@ -1,8 +1,10 @@
 import sqlite3
 import hashlib
+import os
 
 def create_users_table():
-    conn = sqlite3.connect('database.db')
+    db_path = os.path.join('instance', 'baoxiao.db')
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
     try:
@@ -21,6 +23,10 @@ def create_users_table():
                 )
             ''')
             print("创建了新的用户表")
+            # 获取新创建表的列信息
+            cursor.execute("PRAGMA table_info(users)")
+            columns = [column[1] for column in cursor.fetchall()]
+            print(f"新用户表的列：{columns}")
         else:
             # 检查表结构
             cursor.execute("PRAGMA table_info(users)")

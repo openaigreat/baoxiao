@@ -102,6 +102,8 @@
               
              <!-- 添加回款记录表单 -->
              {% if reimbursement.status != '草稿' %}
+             {% set total_amount = attached_expenses|sum(attribute='reimbursement_amount', start=0) %}
+             {% if total_paid < total_amount %}
              <div class="card" style="margin-bottom: 20px;">
                  <div class="card-header">添加回款记录</div>
                  <div class="card-body">
@@ -127,6 +129,11 @@
                      </form>
                  </div>
              </div>
+             {% else %}
+             <div class="alert alert-info" style="margin-bottom: 20px;">
+                 回款总额已达到或超过报销总额，无需再添加回款记录。
+             </div>
+             {% endif %}
              {% endif %}
               
              <!-- 回款记录列表 -->
