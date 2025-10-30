@@ -29,16 +29,6 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th style="cursor: pointer;">
-                            <a href="{{ url_for('stats.expenses', project_id=project.id, sort_by='category', sort_order=next_sort_order if current_sort == 'category' else 'asc') }}">
-                                费用类别
-                                {% if current_sort == 'category' %}
-                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
-                                {% else %}
-                                    <i class="bi bi-sort"></i>
-                                {% endif %}
-                            </a>
-                        </th>
                         <th style="width: 150px; cursor: pointer;">
                             <a href="{{ url_for('stats.expenses', project_id=project.id, sort_by='date', sort_order=next_sort_order if current_sort == 'date' else 'asc') }}">
                                 日期
@@ -53,6 +43,16 @@
                             <a href="{{ url_for('stats.expenses', project_id=project.id, sort_by='description', sort_order=next_sort_order if current_sort == 'description' else 'asc') }}">
                                 用途
                                 {% if current_sort == 'description' %}
+                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="bi bi-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th style="cursor: pointer;">
+                            <a href="{{ url_for('stats.expenses', project_id=project.id, sort_by='category', sort_order=next_sort_order if current_sort == 'category' else 'asc') }}">
+                                费用类别
+                                {% if current_sort == 'category' %}
                                     <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
                                 {% else %}
                                     <i class="bi bi-sort"></i>
@@ -92,6 +92,12 @@
                     {% for expense in expenses %}
                     <tr>
                         <td>
+                            <a href="{{ url_for('stats.date_expenses', date=expense.date) }}">
+                                {{ expense.date }}
+                            </a>
+                        </td>
+                        <td>{{ expense.purpose }}</td>
+                        <td>
                             {{ expense.category or '未分类' }}
                             <br>
                             {% if expense.reimbursement_status %}
@@ -100,12 +106,6 @@
                                 <span class="text-secondary">未报销</span>
                             {% endif %}
                         </td>
-                        <td>
-                            <a href="{{ url_for('stats.date_expenses', date=expense.date) }}">
-                                {{ expense.date }}
-                            </a>
-                        </td>
-                        <td>{{ expense.purpose }}</td>
                         <td><input type="checkbox" class="expense-checkbox" value="{{ expense.id }}"></td>
                         <td>{{ "¥%.2f"|format(expense.amount) }}</td>
                         <td>{{ expense.note }}</td>

@@ -106,6 +106,19 @@ class StatsService:
         try:
             # 构建动态排序查询
             where_clause = 'WHERE e.project_id = ?' if project_id is not None else 'WHERE e.project_id IS NULL'
+            
+            # 处理特殊排序规则 - 对于类别排序，始终让"其他"排在前面
+            if sort_by == 'category':
+                order_expression = f'''
+                    CASE 
+                        WHEN e.category = '其他' THEN 0 
+                        ELSE 1 
+                    END, 
+                    e.category {sort_order}
+                '''
+            else:
+                order_expression = f'{sort_by} {sort_order}'
+            
             query = f'''
                 SELECT e.id, e.date, e.category, e.amount, e.description as purpose, e.project_id, 
                        e.created_at, e.created_by, p.name as project_name, 
@@ -115,7 +128,7 @@ class StatsService:
                 LEFT JOIN projects p ON e.project_id = p.id
                 LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
                 {where_clause} AND re.expense_id IS NULL
-                ORDER BY {sort_by} {sort_order}
+                ORDER BY {order_expression}
             '''
             
             expenses = conn.execute(query, (project_id,) if project_id is not None else ()).fetchall()
