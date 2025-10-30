@@ -252,3 +252,48 @@ class ReimbursementService:
             return {'success': False, 'error': str(e)}
         finally:
             conn.close()
+    
+    def export_reimbursement_details(self, reimbursement_id):
+        """导出报销单的费用汇总信息（按归属项目和费用类别汇总）"""
+        conn = get_db()
+        try:
+            # 获取报销单的汇总信息，按项目和费用类别分组
+            query = '''
+                SELECT 
+                    MIN(e.date) as min_date,
+                    MAX(e.date) as max_date,
+                    COALESCE(p.name, '无项目') as project_name,
+                    e.category,
+                    SUM(re.reimbursement_amount) as total_amount
+                FROM reimbursement_expenses re
+                JOIN expenses e ON re.expense_id = e.id
+                LEFT JOIN projects p ON e.project_id = p.id
+                WHERE re.reimbursement_id = ?
+                GROUP BY p.name, e.category
+                ORDER BY p.name, e.category
+            '''
+            
+            results = conn.execute(query, (reimbursement_id,)).fetchall()
+            
+            # 处理日期格式，如果有多个日期则显示范围
+            export_data = []
+            for row in results:
+                # 如果最小日期和最大日期相同，则只显示一个日期，否则显示日期范围
+                if row['min_date'] == row['max_date']:
+                    date_str = row['min_date']
+                else:
+                    date_str = f"{row['min_date']}至{row['max_date']}"
+                    
+                export_data.append({
+                    'date': date_str,
+                    'project_name': row['project_name'],
+                    'category': row['category'],
+                    'total_amount': row['total_amount']
+                })
+            
+            return export_data
+        except Exception as e:
+            logging.error(f"Error exporting reimbursement details: {e}")
+            raise DatabaseError("导出报销单详情失败")
+        finally:
+            conn.close()

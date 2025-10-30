@@ -15,6 +15,11 @@
             {% elif reimbursement.status == '已拒绝' %}
             <span class="badge bg-danger">已拒绝</span>
             {% endif %}
+            
+            {% if reimbursement.status != '草稿' %}
+            <a href="{{ url_for('reimbursements.export_reimbursement', reimbursement_id=reimbursement.id) }}" 
+               class="btn btn-sm btn-outline-primary ms-2">导出</a>
+            {% endif %}
         </h2>
         
         <!-- 报销单基本信息 -->

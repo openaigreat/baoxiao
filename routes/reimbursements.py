@@ -1,12 +1,16 @@
-from flask import Blueprint, render_template, redirect, url_for, request, session, jsonify, flash
-import sqlite3
-from datetime import datetime
+import os
+import csv
 import logging
-from models import get_db
+from datetime import datetime
+from io import StringIO
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response, jsonify
 from services.reimbursement_service import ReimbursementService
+from services.expense_service import ExpenseService
+from models import get_db
 
-bp = Blueprint('reimbursements', __name__)
+bp = Blueprint('reimbursements', __name__, url_prefix='/reimbursements')
 reimbursement_service = ReimbursementService()
+expense_service = ExpenseService()
 
 def get_db_connection():
     # 使用models.py中的get_db函数，确保使用同一个数据库文件
@@ -22,7 +26,7 @@ def fetch_reimbursements():
         logging.error(f"Error in fetch_reimbursements: {e}")
         return jsonify({'reimbursements': []})
 
-@bp.route('/reimbursements')
+@bp.route('/')
 def reimbursements():
     # 无需登录验证
     # 为了兼容性，设置一个默认用户信息
@@ -36,7 +40,7 @@ def reimbursements():
         status_filter = request.args.get('status', '')
         date_from = request.args.get('date_from', '')
         date_to = request.args.get('date_to', '')
-        
+            
         # 构建SQL查询和参数
         query = '''
             SELECT r.*, 
@@ -52,69 +56,43 @@ def reimbursements():
         
         # 添加WHERE子句
         if status_filter or date_from or date_to:
-            query += ' WHERE'
+            query += " WHERE 1=1"
             
             if status_filter:
-                query += ' r.status = ?'
+                query += " AND r.status = ?"
                 params.append(status_filter)
             
             if date_from:
-                if params:
-                    query += ' AND'
-                query += ' r.submit_date >= ?'
+                query += " AND r.submit_date >= ?"
                 params.append(date_from)
             
             if date_to:
-                if params:
-                    query += ' AND'
-                query += ' r.submit_date <= ?'
+                query += " AND r.submit_date <= ?"
                 params.append(date_to)
         
         # 添加GROUP BY和ORDER BY
         query += '''
             GROUP BY r.id
-            ORDER BY r.created_at DESC
+            ORDER BY r.submit_date DESC, r.created_at DESC
         '''
         
-        # 执行查询
         reimbursements = conn.execute(query, params).fetchall()
+        conn.close()
         
-        # 获取报销状态统计（带筛选条件）
-        stats_query = 'SELECT status, COUNT(*) as count, SUM(total_amount) as total FROM reimbursements'
-        stats_params = []
-        
-        if status_filter or date_from or date_to:
-            stats_query += ' WHERE'
-            
-            if status_filter:
-                stats_query += ' status = ?'
-                stats_params.append(status_filter)
-            
-            if date_from:
-                if stats_params:
-                    stats_query += ' AND'
-                stats_query += ' submit_date >= ?'
-                stats_params.append(date_from)
-            
-            if date_to:
-                if stats_params:
-                    stats_query += ' AND'
-                stats_query += ' submit_date <= ?'
-                stats_params.append(date_to)
-        
-        stats_query += ' GROUP BY status'
-        status_stats = conn.execute(stats_query, stats_params).fetchall()
-        
+        return render_template('reimbursements.html', 
+                             reimbursements=reimbursements,
+                             status_filter=status_filter,
+                             date_from=date_from,
+                             date_to=date_to)
+                             
     except Exception as e:
         logging.error(f"Error fetching reimbursements: {e}")
-        reimbursements = []
-        status_stats = []
-    finally:
         conn.close()
-    
-    return render_template('reimbursements.html', 
-                          reimbursements=reimbursements, 
-                          status_stats=status_stats)
+        return render_template('reimbursements.html', 
+                             reimbursements=[],
+                             status_filter=status_filter,
+                             date_from=date_from,
+                             date_to=date_to)
 
 @bp.route('/add_reimbursement', methods=['GET', 'POST'])
 def add_reimbursement():
@@ -123,14 +101,13 @@ def add_reimbursement():
         session['user_id'] = 1
         session['username'] = '默认用户'
     
-    conn = get_db()
-    
     if request.method == 'POST':
-        submit_date = request.form['submit_date']
-        note = request.form['note'] or ''
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
+        conn = get_db()
         try:
+            submit_date = request.form['submit_date']
+            note = request.form['note'] or ''
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
             # 创建新的报销单（草稿状态）
             conn.execute('''
                 INSERT INTO reimbursements (submit_date, total_amount, status, note, created_by, created_at, updated_at)
@@ -141,13 +118,14 @@ def add_reimbursement():
             # 获取新创建的报销单ID
             reimbursement_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
             
+            conn.close()
             return redirect(url_for('reimbursements.edit_reimbursement', reimbursement_id=reimbursement_id))
             
         except Exception as e:
-            logging.error(f"Error adding reimbursement: {e}")
+            logging.error(f"Error creating reimbursement: {e}")
             conn.rollback()
+            conn.close()
     
-    conn.close()
     return render_template('add_reimbursement.html')
 
 @bp.route('/edit_reimbursement/<int:reimbursement_id>', methods=['GET', 'POST'])
@@ -162,14 +140,21 @@ def edit_reimbursement(reimbursement_id):
         session['username'] = '默认用户'
     
     # 获取报销单信息
-    conn = get_db_connection()
-    reimbursement = conn.execute('''
-        SELECT r.*, COALESCE(SUM(rp.amount), 0) as total_paid
-        FROM reimbursements r
-        LEFT JOIN reimbursement_payments rp ON r.id = rp.reimbursement_id
-        WHERE r.id = ?
-        GROUP BY r.id
-    ''', (reimbursement_id,)).fetchone()
+    conn = get_db()
+    try:
+        reimbursement = conn.execute('''
+            SELECT r.*, COALESCE(SUM(rp.amount), 0) as total_paid
+            FROM reimbursements r
+            LEFT JOIN reimbursement_payments rp ON r.id = rp.reimbursement_id
+            WHERE r.id = ?
+            GROUP BY r.id
+        ''', (reimbursement_id,)).fetchone()
+    except Exception as e:
+        logging.error(f"Error fetching reimbursement: {e}")
+        conn.close()
+        return redirect(url_for('reimbursements.reimbursements'))
+    finally:
+        pass  # conn在函数末尾关闭
     
     if not reimbursement:
         conn.close()
@@ -349,7 +334,7 @@ def remove_expense_from_reimbursement():
         session['user_id'] = 1
         session['username'] = '默认用户'
     
-    conn = get_db_connection()
+    conn = get_db()
     
     try:
         reimbursement_id = request.form.get('reimbursement_id', type=int)
@@ -390,7 +375,7 @@ def delete_reimbursement(reimbursement_id):
         session['user_id'] = 1
         session['username'] = '默认用户'
     
-    conn = get_db_connection()
+    conn = get_db()
     
     # 开始事务
     conn.execute('BEGIN TRANSACTION')
@@ -652,7 +637,89 @@ def batch_add_to_reimbursement():
         conn.close()
         return jsonify({'success': False, 'error': str(e)})
 
-
+@bp.route('/export_reimbursement/<int:reimbursement_id>')
+def export_reimbursement(reimbursement_id):
+    # 无需登录验证
+    if 'user_id' not in session:
+        session['user_id'] = 1
+        session['username'] = '默认用户'
+    
+    try:
+        # 获取导出数据
+        export_data = reimbursement_service.export_reimbursement_details(reimbursement_id)
+        
+        # 生成CSV内容
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # 写入表头
+        writer.writerow(['费用日期', '项目分类', '费用金额'])
+        
+        # 写入数据行
+        for row in export_data:
+            # 拼接项目和分类字段并加上"费用"
+            project_category = f"{row['project_name']}-{row['category']}费用"
+            
+            writer.writerow([
+                row['date'],
+                project_category,
+                f"{row['total_amount']:.2f}"
+            ])
+        
+        # 准备响应
+        csv_data = output.getvalue()
+        output.close()
+        
+        # 转换为GBK编码
+        csv_data_gbk = csv_data.encode('utf-8').decode('utf-8').encode('gbk', errors='ignore')
+        
+        # 创建响应
+        response = make_response(csv_data_gbk)
+        response.headers['Content-Type'] = 'text/csv; charset=gbk'
+        response.headers['Content-Disposition'] = f'attachment; filename=reimbursement_{reimbursement_id}_summary.csv'
+        
+        return response
+    except UnicodeEncodeError:
+        # 如果GBK编码失败，使用UTF-8编码
+        try:
+            export_data = reimbursement_service.export_reimbursement_details(reimbursement_id)
+            
+            # 生成CSV内容
+            output = StringIO()
+            writer = csv.writer(output)
+            
+            # 写入表头
+            writer.writerow(['费用日期', '项目分类', '费用金额'])
+            
+            # 写入数据行
+            for row in export_data:
+                # 拼接项目和分类字段并加上"费用"
+                project_category = f"{row['project_name']}-{row['category']}费用"
+                
+                writer.writerow([
+                    row['date'],
+                    project_category,
+                    f"{row['total_amount']:.2f}"
+                ])
+            
+            # 准备响应
+            csv_data = output.getvalue()
+            output.close()
+            
+            # 创建响应
+            response = make_response(csv_data)
+            response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+            response.headers['Content-Disposition'] = f'attachment; filename=reimbursement_{reimbursement_id}_summary.csv'
+            
+            return response
+        except Exception as e:
+            logging.error(f"Error exporting reimbursement: {e}")
+            flash('导出失败: ' + str(e), 'error')
+            return redirect(url_for('reimbursements.edit_reimbursement', reimbursement_id=reimbursement_id))
+    except Exception as e:
+        logging.error(f"Error exporting reimbursement: {e}")
+        flash('导出失败: ' + str(e), 'error')
+        return redirect(url_for('reimbursements.edit_reimbursement', reimbursement_id=reimbursement_id))
 
 @bp.route('/create_reimbursement_ajax', methods=['POST'])
 def create_reimbursement_ajax():
