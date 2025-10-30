@@ -7,6 +7,9 @@
         <div class="mb-3">
             <a href="{{ url_for('projects.add_project') }}" class="btn btn-primary">添加项目</a>
             <a href="{{ url_for('projects.manage_projects') }}" class="btn btn-secondary ml-2">项目管理</a>
+            <a href="{{ url_for('projects.view_all_projects') }}" class="btn btn-info ml-2">查看所有项目</a>
+            <a href="{{ url_for('stats.project_payment_stats') }}" class="btn btn-success ml-2">项目回款统计</a>
+            <a href="{{ url_for('stats.expense_payment_status') }}" class="btn btn-warning ml-2">支出回款详情</a>
         </div>
         <div class="table-responsive">
             <table class="table table-hover">
@@ -15,10 +18,10 @@
                         <th>项目信息</th>
                         <th>状态</th>
                         <th>支出总额</th>
-                        <th>未报销金额</th>
+                        <th style="font-weight: bold;">未报销金额</th>
                         <th>已提交金额</th>
-                        <th>已收款</th>
-                        <th>未收款</th>
+                        <th>已回款金额</th>
+                        <th>未回款金额</th>
                         <th>备注</th>
                         <th style="width: 100px;">操作</th>
                     </tr>
@@ -35,10 +38,10 @@
                                 </span>
                             </td>
                             <td>{{ "¥%.2f"|format(item.total_expense or 0) }}</td>
-                            <td>{{ "¥%.2f"|format((item.total_expense or 0) - (item.submitted_amount or 0)) }}</td>
+                            <td style="font-weight: bold;">{{ "¥%.2f"|format((item.total_expense or 0) - (item.submitted_amount or 0)) }}</td>
                             <td>{{ "¥%.2f"|format(item.submitted_amount or 0) }}</td>
-                            <td>{{ "¥%.2f"|format(item.project_amount) }}</td>
-                            <td>{{ "¥%.2f"|format((item.submitted_amount or 0) - (item.project_amount)) }}</td>
+                            <td>{{ "¥%.2f"|format(item.paid_amount or 0) }}</td>
+                            <td>{{ "¥%.2f"|format(item.unpaid_amount or 0) }}</td>
                             <td>{{ item.note }}</td>
                             <td>
                                 <a href="{{ url_for('stats.orphan_expenses') }}" class="btn btn-sm btn-outline-primary">
@@ -60,10 +63,10 @@
                                 </span>
                             </td>
                             <td>{{ "¥%.2f"|format(item.total_expense or 0) }}</td>
-                            <td>{{ "¥%.2f"|format((item.total_expense or 0) - (item.submitted_amount or 0)) }}</td>
+                            <td style="font-weight: bold;">{{ "¥%.2f"|format((item.total_expense or 0) - (item.submitted_amount or 0)) }}</td>
                             <td>{{ "¥%.2f"|format(item.submitted_amount or 0) }}</td>
-                            <td>{{ "¥%.2f"|format(item.project_amount) }}</td>
-                            <td>{{ "¥%.2f"|format((item.submitted_amount or 0) - (item.project_amount)) }}</td>
+                            <td>{{ "¥%.2f"|format(item.paid_amount or 0) }}</td>
+                            <td>{{ "¥%.2f"|format(item.unpaid_amount or 0) }}</td>
                             <td>{{ item.note }}</td>
                             <td>
                                 <a href="{{ url_for('stats.expenses', project_id=item.id) }}" class="btn btn-sm btn-outline-primary">
@@ -79,10 +82,10 @@
                         <td>总计</td>
                         <td></td> <!-- 状态列 -->
                         <td>{{ "¥%.2f"|format(stats|sum(attribute='total_expense', start=0)) }}</td>
-                        <td>{{ "¥%.2f"|format(stats|sum(attribute='total_expense', start=0) - stats|sum(attribute='submitted_amount', start=0)) }}</td>
+                        <td style="font-weight: bold;">{{ "¥%.2f"|format(stats|sum(attribute='total_expense', start=0) - stats|sum(attribute='submitted_amount', start=0)) }}</td>
                         <td>{{ "¥%.2f"|format(stats|sum(attribute='submitted_amount', start=0)) }}</td>
-                        <td>{{ "¥%.2f"|format(stats|sum(attribute='project_amount', start=0)) }}</td>
-                        <td>{{ "¥%.2f"|format(stats|sum(attribute='submitted_amount', start=0) - stats|sum(attribute='project_amount', start=0)) }}</td>
+                        <td>{{ "¥%.2f"|format(stats|sum(attribute='paid_amount', start=0)) }}</td>
+                        <td>{{ "¥%.2f"|format(stats|sum(attribute='unpaid_amount', start=0)) }}</td>
                         <td colspan="2"></td>
                     </tr>
                 </tfoot>
@@ -99,34 +102,50 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    fetch('/get_orphan_expenses_total')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok ' + response.statusText);
-            }
-            return response.json();
-        })
+    // 加载无项目支出统计
+    fetch('/orphan_expenses_stats')
+        .then(response => response.json())
         .then(data => {
             const container = document.getElementById('orphan-expenses-container');
-            if (data.length === 0) {
-                container.innerHTML = '<p>没有孤立支出</p>';
-                return;
+            if (data.total_count > 0) {
+                container.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">支出笔数</h5>
+                                    <p class="card-text display-4">${data.total_count}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">支出总额</h5>
+                                    <p class="card-text display-4">¥${data.total_amount.toFixed(2)}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">涉及分类</h5>
+                                    <p class="card-text display-4">${data.category_count}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <a href="{{ url_for('stats.orphan_expenses') }}" class="btn btn-outline-primary">查看无项目支出明细</a>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = '<p class="text-muted">暂无无项目支出记录</p>';
             }
-            container.innerHTML = '';
-            data.forEach(item => {
-                const button = document.createElement('button');
-                button.className = 'btn btn-sm btn-primary mb-2';
-                button.innerHTML = `¥${item.total_amount.toFixed(2)}`;
-                button.addEventListener('click', () => {
-                    window.location.href = '/orphan_expenses';
-                });
-                container.appendChild(button);
-            });
         })
         .catch(error => {
-            console.error('Error fetching orphan expenses total:', error);
-            const container = document.getElementById('orphan-expenses-container');
-            container.innerHTML = '<p>加载失败</p>';
+            console.error('Error loading orphan expenses stats:', error);
+            document.getElementById('orphan-expenses-container').innerHTML = '<p class="text-danger">加载失败</p>';
         });
 });
 </script>

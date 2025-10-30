@@ -60,7 +60,7 @@
                             </a>
                         </th>
                         <th><input type="checkbox" id="select-all"></th>
-                        <th style="cursor: pointer;">
+                        <th style="cursor: pointer;" id="amount-header">
                             <a href="{{ url_for('stats.expenses', project_id=project.id, sort_by='amount', sort_order=next_sort_order if current_sort == 'amount' else 'asc') }}">
                                 金额
                                 {% if current_sort == 'amount' %}
@@ -69,6 +69,10 @@
                                     <i class="bi bi-sort"></i>
                                 {% endif %}
                             </a>
+                            <div id="selected-stats" style="font-size: 0.8em; display: none;">
+                                <span class="badge bg-primary">选中: <span id="selected-count">0</span>笔</span>
+                                <span class="badge bg-success">合计: ¥<span id="selected-amount">0.00</span></span>
+                            </div>
                         </th>
                         <th style="cursor: pointer;">
                             <a href="{{ url_for('stats.expenses', project_id=project.id, sort_by='note', sort_order=next_sort_order if current_sort == 'note' else 'asc') }}">
@@ -792,9 +796,114 @@ function loadReimbursements() {
         });
 }
 
+// 添加选中统计功能
+function addSelectionStatsFunctionality() {
+    console.log('初始化选中统计功能');
+    const checkboxes = document.querySelectorAll('.expense-checkbox');
+    const selectAll = document.getElementById('select-all');
+    const selectedStats = document.getElementById('selected-stats');
+    const selectedCount = document.getElementById('selected-count');
+    const selectedAmount = document.getElementById('selected-amount');
+    
+    console.log('复选框数量:', checkboxes.length);
+    console.log('全选框:', selectAll);
+    console.log('统计信息容器:', selectedStats);
+    console.log('计数元素:', selectedCount);
+    console.log('金额元素:', selectedAmount);
+    
+    // 如果没有找到必要的元素，直接返回
+    if (!selectedStats || !selectedCount || !selectedAmount) {
+        console.log('未找到必要的DOM元素');
+        return;
+    }
+    
+    // 为每个复选框添加事件监听器
+    checkboxes.forEach((checkbox, index) => {
+        console.log('为复选框添加事件监听器:', index, checkbox);
+        checkbox.addEventListener('change', updateSelectionStats);
+    });
+    
+    // 全选/取消全选功能
+    if (selectAll) {
+        console.log('为全选框添加事件监听器');
+        selectAll.addEventListener('change', function() {
+            console.log('全选框状态改变:', this.checked);
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAll.checked;
+            });
+            updateSelectionStats();
+        });
+    }
+    
+    // 更新选中统计信息
+    function updateSelectionStats() {
+        console.log('更新选中统计信息');
+        let count = 0;
+        let amount = 0;
+        
+        checkboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                count++;
+                // 获取对应的金额，假设在同一行的金额单元格中
+                const row = checkbox.closest('tr');
+                console.log('处理选中的行:', row);
+                if (row) {
+                    // 修正索引：费用类别、日期、用途、复选框、金额、备注、操作
+                    // 金额列应该是第5列（索引为4）
+                    const amountCells = row.querySelectorAll('td');
+                    console.log('行中的单元格数量:', amountCells.length);
+                    if (amountCells.length > 4) {
+                        const amountCell = amountCells[4];
+                        console.log('金额单元格:', amountCell);
+                        if (amountCell) {
+                            const amountText = amountCell.textContent || amountCell.innerText;
+                            console.log('金额文本:', amountText);
+                            const amountValue = parseFloat(amountText.replace(/[^0-9.-]+/g, ""));
+                            console.log('金额数值:', amountValue);
+                            if (!isNaN(amountValue)) {
+                                amount += amountValue;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        console.log('最终统计结果 - 数量:', count, '金额:', amount);
+        
+        // 更新显示
+        selectedCount.textContent = count;
+        selectedAmount.textContent = amount.toFixed(2);
+        
+        // 如果有选中项则显示统计信息，否则隐藏
+        if (count > 0) {
+            selectedStats.style.display = 'block';
+            console.log('显示统计信息');
+        } else {
+            selectedStats.style.display = 'none';
+            console.log('隐藏统计信息');
+        }
+        
+        // 更新全选框状态
+        if (selectAll) {
+            const totalCheckboxes = checkboxes.length;
+            const checkedCheckboxes = document.querySelectorAll('.expense-checkbox:checked').length;
+            selectAll.checked = totalCheckboxes > 0 && checkedCheckboxes === totalCheckboxes;
+            console.log('更新全选框状态:', selectAll.checked);
+        }
+    }
+    
+    // 初始调用一次更新
+    console.log('初始调用更新统计信息');
+    updateSelectionStats();
+}
+
 // 等待DOM加载完成后再执行JavaScript
 document.addEventListener('DOMContentLoaded', function() {
     console.log('页面加载完成');
+    
+    // 添加选中统计功能
+    addSelectionStatsFunctionality();
 });
 </script>
 {% endblock %}

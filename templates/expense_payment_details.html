@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card shadow">
+    <div class="card-body">
+        <h2 class="card-title mb-4">{{ title }}</h2>
+        
+        {% if expenses %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>支出日期</th>
+                        <th>项目</th>
+                        <th>类别</th>
+                        <th>用途</th>
+                        <th>支出金额</th>
+                        <th>报销单ID</th>
+                        <th>报销状态</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in expenses %}
+                    <tr>
+                        <td>{{ expense.expense_date }}</td>
+                        <td>{{ expense.project_name or '无项目' }}</td>
+                        <td>{{ expense.category or '未分类' }}</td>
+                        <td>{{ expense.purpose }}</td>
+                        <td>¥{{ "%.2f"|format(expense.expense_amount) }}</td>
+                        <td>{{ expense.reimbursement_id or '-' }}</td>
+                        <td>
+                            {% if expense.reimbursement_status %}
+                                <span class="badge {% if expense.reimbursement_status == '已回款' %}bg-success{% elif expense.reimbursement_status in ['已提交', '审核中', '已批准'] %}bg-primary{% else %}bg-secondary{% endif %}">
+                                    {{ expense.reimbursement_status }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">未报销</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            暂无相关支出记录
+        </div>
+        {% endif %}
+        
+        <div class="mt-3">
+            <a href="{{ url_for('stats.project_payment_stats') }}" class="btn btn-secondary">返回项目回款统计</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

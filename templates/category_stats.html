@@ -56,7 +56,7 @@
                     {% for category in categories %}
                     <tr>
                         <td>{{ category.category }}</td>
-                        <td>{{ category.count }}</td>
+                        <td>{{ category.expense_count }}</td>
                         <td class="text-right">¥{{ "%.2f" | format(category.total_amount) }}</td>
                         <td>
                             <div class="d-flex align-items-center">

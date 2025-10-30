@@ -3,8 +3,10 @@ import sqlite3
 import logging
 from models import get_db
 from datetime import datetime
+from services.stats_service import StatsService
 
 bp = Blueprint('stats', __name__)
+stats_service = StatsService()
 
 @bp.route('/stats')
 def stats():
@@ -14,53 +16,8 @@ def stats():
         session['user_id'] = 1
         session['username'] = '默认用户'
     
-    conn = get_db()
-    # 获取项目统计，包括已提交金额
-    project_stats = conn.execute('''
-        SELECT p.id, p.name,
-               SUM(e.amount) AS total_expense,
-               SUM(CASE WHEN re.expense_id IS NOT NULL THEN e.amount ELSE 0 END) AS submitted_amount,
-               p.note, p.status
-        FROM projects p
-        LEFT JOIN expenses e ON p.id = e.project_id
-        LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
-        GROUP BY p.id
-    ''').fetchall()
-    
-    # 获取无项目支出统计，包括已提交金额
-    orphan_stats = conn.execute('''
-        SELECT SUM(e.amount) AS total_expense,
-               SUM(CASE WHEN re.expense_id IS NOT NULL THEN e.amount ELSE 0 END) AS submitted_amount
-        FROM expenses e
-        LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
-        WHERE e.project_id IS NULL
-    ''').fetchone()
-    
-    orphan_total = orphan_stats['total_expense'] or 0
-    orphan_submitted = orphan_stats['submitted_amount'] or 0
-    
-    # 初始化统计结果列表
-    stats = []
-    
-    # 如果有无项目支出，将其添加到统计结果的最前面
-    if orphan_total > 0:
-        # 使用字典模拟Row对象来显示无项目支出
-        orphan_record = {'id': None, 'name': '无项目支出', 'project_amount': 0, 
-                        'total_expense': orphan_total, 'submitted_amount': orphan_submitted, 'note': ''}
-        stats.append(orphan_record)
-    
-    # 添加正常项目统计，并处理None值
-    for project in project_stats:
-        # 转换Row对象为字典，并处理None值
-        project_dict = dict(project)
-        # 设置默认的项目预算金额为0
-        project_dict['project_amount'] = 0
-        project_dict['total_expense'] = project_dict.get('total_expense', 0) or 0
-        project_dict['submitted_amount'] = project_dict.get('submitted_amount', 0) or 0
-        stats.append(project_dict)
-    
-    conn.close()
-    return render_template('stats.html', stats=stats)
+    stats_data = stats_service.get_project_stats()
+    return render_template('stats.html', stats=stats_data)
 
 @bp.route('/expenses/<int:project_id>')
 def expenses(project_id):
@@ -74,72 +31,26 @@ def expenses(project_id):
     sort_by = request.args.get('sort_by', 'category')  # 默认按类别排序
     sort_order = request.args.get('sort_order', 'asc')  # 默认正序
     
-    # 验证排序字段
-    valid_sort_fields = ['category', 'date', 'description', 'amount', 'payment_method']
-    # 保存原始排序字段用于模板显示
-    original_sort_by = sort_by
-    # 允许使用'purpose'作为排序字段（内部会映射到'description'）
-    if sort_by == 'purpose':
-        sort_by = 'description'
-    # 允许使用'note'作为排序字段（内部会映射到'payment_method'）
-    elif sort_by == 'note':
-        sort_by = 'payment_method'
-    elif sort_by not in valid_sort_fields:
-        sort_by = 'category'
-        original_sort_by = 'category'
+    expenses_data = stats_service.get_expenses_by_project(project_id, sort_by, sort_order)
     
-    # 验证排序顺序
-    if sort_order not in ['asc', 'desc']:
-        sort_order = 'asc'
-    
-    conn = get_db()
-    project = conn.execute('''
-        SELECT id, name
-        FROM projects
-        WHERE id = ?
-    ''', (project_id,)).fetchone()
-    
-    # 构建带排序的SQL查询，只返回未报销的支出记录
-    # 根据expenses.py中的实现，description字段存储purpose内容，payment_method字段存储note内容
-    query = f'''
-        SELECT e.id, e.date, e.category, e.amount, e.description as purpose, e.project_id, 
-               e.created_at, e.created_by, CASE WHEN re.expense_id IS NOT NULL THEN 1 ELSE 0 END as reimbursement_status,
-               e.payment_method as note
-        FROM expenses e
-        LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
-        WHERE e.project_id = ? AND re.reimbursement_id IS NULL
-        ORDER BY e.{sort_by} {sort_order}, e.date asc
-    '''
-    params = (project_id,)
-    
-    expenses = conn.execute(query, params).fetchall()
-    
-    # 获取所有进行中的项目列表，用于归属项目选择
-    projects = conn.execute('''
-        SELECT id, name
-        FROM projects
-        WHERE status = ?
-        ORDER BY name
-    ''', ('进行中',)).fetchall()
-    
-    total_amount = sum(expense['amount'] for expense in expenses)  # 使用字典访问方式
-    
-    if not project:
+    project = {'id': project_id, 'name': f'项目 {project_id}'}
+    if project_id is not None:
+        conn = get_db()
+        project = conn.execute('''
+            SELECT id, name
+            FROM projects
+            WHERE id = ?
+        ''', (project_id,)).fetchone()
         conn.close()
-        return redirect(url_for('index'))
     
-    # 计算下一次点击的排序顺序
-    next_sort_order = 'desc' if sort_order == 'asc' else 'asc'
-    
-    conn.close()
     return render_template('expenses.html', 
-                           expenses=expenses, 
-                           project=project, 
-                           total_amount=total_amount, 
-                           projects=projects,
-                           current_sort=original_sort_by,
-                           current_order=sort_order,
-                           next_sort_order=next_sort_order)
+                         project=project,
+                         expenses=expenses_data['expenses'],
+                         total_amount=expenses_data['total_amount'],
+                         projects=expenses_data['projects'],
+                         current_sort=expenses_data['current_sort'],
+                         current_order=expenses_data['current_order'],
+                         next_sort_order=expenses_data['next_sort_order'])
 
 @bp.route('/category_stats')
 def category_stats():
@@ -149,53 +60,20 @@ def category_stats():
         session['user_id'] = 1
         session['username'] = '默认用户'
     
-    # 获取排序参数
-    sort_by = request.args.get('sort_by', 'total_amount')  # 默认按总金额排序
-    sort_order = request.args.get('sort_order', 'desc')  # 默认降序
+    stats_data = stats_service.get_category_stats(session)
     
-    # 验证排序字段
-    valid_sort_fields = ['category', 'count', 'total_amount']
-    if sort_by not in valid_sort_fields:
-        sort_by = 'total_amount'
+    # 提取总费用用于模板
+    total_stats = stats_data.get('total_stats')
+    if total_stats:
+        # sqlite3.Row 对象需要通过索引或键访问字段
+        total_expenses = total_stats['total_amount'] if total_stats['total_amount'] else 0
+    else:
+        total_expenses = 0
     
-    # 验证排序顺序
-    if sort_order not in ['asc', 'desc']:
-        sort_order = 'desc'
-    
-    conn = get_db()
-    
-    # 构建带排序的SQL查询
-    query = f'''
-        SELECT 
-            category,
-            COUNT(*) as count,
-            SUM(amount) as total_amount
-        FROM expenses
-        WHERE created_by = ?
-        GROUP BY category
-        ORDER BY {sort_by} {sort_order}
-    '''
-    
-    categories = conn.execute(query, (session['user_id'],)).fetchall()
-    
-    # 获取总费用
-    total_expenses = conn.execute('''
-        SELECT SUM(amount) as total
-        FROM expenses
-        WHERE created_by = ?
-    ''', (session['user_id'],)).fetchone()['total'] or 0
-    
-    # 计算下一次点击的排序顺序
-    next_sort_order = 'desc' if sort_order == 'asc' else 'asc'
-    
-    conn.close()
-    
-    return render_template('category_stats.html', 
-                         categories=categories, 
-                         total_expenses=total_expenses,
-                         current_sort=sort_by,
-                         current_order=sort_order,
-                         next_sort_order=next_sort_order)
+    return render_template('category_stats.html',
+                         categories=stats_data.get('categories', []),
+                         total_stats=total_stats,
+                         total_expenses=total_expenses)
 
 @bp.route('/category/<category_name>')
 def category_expenses(category_name):
@@ -209,61 +87,16 @@ def category_expenses(category_name):
     sort_by = request.args.get('sort_by', 'project_name')
     sort_order = request.args.get('sort_order', 'asc')
     
-    # 验证排序参数
-    valid_sort_fields = ['project_name', 'date', 'category', 'purpose', 'amount', 'note', 'payment_method']
-    if sort_by not in valid_sort_fields:
-        sort_by = 'project_name'
-    
-    if sort_order not in ['asc', 'desc']:
-        sort_order = 'asc'
-    
-    conn = get_db()
-    
-    # 获取该类别的所有费用记录，支持动态排序，并左连接报销表以获取报销状态
-    # 根据expenses.py中的实现，description字段存储purpose内容，payment_method字段存储note内容
-    query = f'''
-        SELECT e.id, e.date, e.category, e.amount, e.description as purpose, e.project_id, 
-               e.created_at, e.created_by, p.name as project_name, 
-               CASE WHEN re.expense_id IS NOT NULL THEN 1 ELSE 0 END as reimbursement_status,
-               e.payment_method as note
-        FROM expenses e
-        LEFT JOIN projects p ON e.project_id = p.id
-        LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
-        WHERE e.created_by = ? AND e.category = ?
-        ORDER BY {sort_by} {sort_order}
-    '''
-    params = (session['user_id'], category_name)
-    
-    expenses = conn.execute(query, params).fetchall()
-    
-    # 获取总金额
-    total_amount = conn.execute('''
-        SELECT SUM(amount) as total
-        FROM expenses
-        WHERE created_by = ? AND category = ?
-    ''', (session['user_id'], category_name)).fetchone()['total'] or 0
-    
-    # 获取所有进行中的项目列表，用于批量修改
-    projects = conn.execute('''
-        SELECT id, name
-        FROM projects
-        WHERE status = ?
-        ORDER BY name
-    ''', ('进行中',)).fetchall()
-    
-    conn.close()
-    
-    # 计算下一次点击的排序顺序
-    next_sort_order = 'desc' if sort_order == 'asc' else 'asc'
+    expenses_data = stats_service.get_expenses_by_category(category_name, session, sort_by, sort_order)
     
     return render_template('category_expenses.html', 
-                         expenses=expenses, 
+                         expenses=expenses_data['expenses'], 
                          category_name=category_name,
-                         total_amount=total_amount,
-                         projects=projects,
-                         current_sort=sort_by,
-                         current_order=sort_order,
-                         next_sort_order=next_sort_order)
+                         total_amount=expenses_data['total_amount'],
+                         projects=expenses_data['projects'],
+                         current_sort=expenses_data['current_sort'],
+                         current_order=expenses_data['current_order'],
+                         next_sort_order=expenses_data['next_sort_order'])
 
 @bp.route('/batch_update_categories', methods=['POST'])
 def batch_update_categories():
@@ -299,58 +132,43 @@ def batch_update_categories():
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'success': False, 'error': '请选择要修改的记录'})
         flash('请选择要修改的记录', 'warning')
-        return redirect(url_for('stats.category_stats'))
+        return redirect(request.referrer or url_for('stats.category_stats'))
     
     if not new_category:
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': False, 'error': '请选择费用类别'})
-        flash('请选择费用类别', 'warning')
-        return redirect(url_for('stats.category_stats'))
+            return jsonify({'success': False, 'error': '请提供新的分类名称'})
+        flash('请提供新的分类名称', 'warning')
+        return redirect(request.referrer or url_for('stats.category_stats'))
     
+    # 更新数据库
     conn = get_db()
     try:
-        # 批量更新费用类别
-        placeholders = ','.join(['?' for _ in expense_ids])
+        # 使用IN子句和参数化查询来更新记录
+        placeholders = ','.join('?' * len(expense_ids))
         conn.execute(f'''
-            UPDATE expenses
-            SET category = ?
+            UPDATE expenses 
+            SET category = ? 
             WHERE id IN ({placeholders}) AND created_by = ?
         ''', [new_category] + expense_ids + [session['user_id']])
         conn.commit()
         
-        updated_count = conn.execute('''
-            SELECT COUNT(*)
-            FROM expenses
-            WHERE id IN ({placeholders}) AND category = ? AND created_by = ?
-        '''.format(placeholders=placeholders), expense_ids + [new_category] + [session['user_id']]).fetchone()[0]
-        
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            # 对于AJAX请求，返回JSON响应，增加成功消息
-            return jsonify({
-                'success': True, 
-                'count': updated_count,
-                'message': f'🎉 成功更新 {updated_count} 条记录的费用类别！'
-            })
-        else:
-            # 对于普通请求，使用flash消息，增加emoji和详细信息
-            flash(f'🎉 成功更新 {updated_count} 条记录的费用类别！', 'success')
-            # 添加多层回退机制
-            return redirect(url_for('stats.category_stats'))
+            return jsonify({'success': True, 'message': f'成功更新{len(expense_ids)}条记录的分类为"{new_category}"'})
+        flash(f'成功更新{len(expense_ids)}条记录的分类为"{new_category}"', 'success')
     except Exception as e:
         conn.rollback()
+        logging.error(f"Error updating categories: {e}")
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            # 对于AJAX请求，返回JSON错误响应，使用更友好的错误消息
-            return jsonify({
-                'success': False, 
-                'error': f'❌ 更新失败: {str(e)}',
-                'message': '请稍后重试或联系管理员'
-            })
-        else:
-            # 对于普通请求，使用flash消息，使用更友好的错误消息
-            flash(f'❌ 更新失败: {str(e)}', 'danger')
-            return redirect(url_for('stats.category_stats'))
+            return jsonify({'success': False, 'error': '更新失败，请重试'})
+        flash('更新失败，请重试', 'danger')
     finally:
         conn.close()
+    
+    # 尝试返回到原来的分类页面
+    referer = request.referrer
+    if referer and '/category/' in referer:
+        return redirect(referer)
+    return redirect(url_for('stats.category_stats'))
 
 @bp.route('/orphan_expenses')
 def orphan_expenses():
@@ -361,70 +179,18 @@ def orphan_expenses():
         session['username'] = '默认用户'
     
     # 获取排序参数
-    sort_by = request.args.get('sort_by', 'date')  # 默认按日期排序
+    sort_by = request.args.get('sort_by', 'category')  # 默认按类别排序
     sort_order = request.args.get('sort_order', 'asc')  # 默认正序
     
-    # 验证排序字段
-    valid_sort_fields = ['date', 'description', 'category', 'amount', 'payment_method']
-    # 保存原始排序字段用于模板显示
-    original_sort_by = sort_by
-    # 允许使用'purpose'作为排序字段（内部会映射到'description'）
-    if sort_by == 'purpose':
-        sort_by = 'description'
-    # 允许使用'note'作为排序字段（内部会映射到'payment_method'）
-    elif sort_by == 'note':
-        sort_by = 'payment_method'
-    elif sort_by not in valid_sort_fields:
-        sort_by = 'date'
-        original_sort_by = 'date'
-    
-    # 验证排序顺序
-    if sort_order not in ['asc', 'desc']:
-        sort_order = 'asc'
-    
-    conn = get_db()
-    try:
-        # 构建带排序的SQL查询，并左连接报销表以获取报销状态
-        query = f'''
-            SELECT e.id, e.date, e.description as purpose, e.amount, e.payment_method as note, e.created_by, e.category, 
-                   CASE WHEN re.expense_id IS NOT NULL THEN 1 ELSE 0 END as reimbursement_status
-            FROM expenses e
-            LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
-            WHERE e.project_id IS NULL OR e.project_id NOT IN (SELECT id FROM projects)
-            ORDER BY e.{sort_by} {sort_order}
-        '''
-        orphan_expenses = conn.execute(query).fetchall()
-        total_amount = sum(expense['amount'] for expense in orphan_expenses)  # 使用字典访问方式
-        
-        # 获取进行中的项目列表，用于归属项目选择
-        projects = conn.execute('''
-            SELECT id, name
-            FROM projects
-            WHERE status = ?
-            ORDER BY name
-        ''', ('进行中',)).fetchall()
-    except Exception as e:
-        logging.error(f"Error fetching orphan expenses details: {e}")
-        orphan_expenses = []
-        total_amount = 0
-        projects = []
-    finally:
-        conn.close()
-    
-    # 计算下一次点击的排序顺序
-    next_sort_order = 'desc' if sort_order == 'asc' else 'asc'
-    
-    # 获取记录数量
-    expense_count = len(orphan_expenses)
+    expenses_data = stats_service.get_expenses_by_project(None, sort_by, sort_order)
     
     return render_template('orphan_expenses.html', 
-                           expenses=orphan_expenses, 
-                           total_amount=total_amount, 
-                           projects=projects,
-                           current_sort=original_sort_by,
-                           current_order=sort_order,
-                           next_sort_order=next_sort_order,
-                           expense_count=expense_count)
+                         expenses=expenses_data['expenses'],
+                         total_amount=expenses_data['total_amount'],
+                         projects=expenses_data['projects'],
+                         current_sort=expenses_data['current_sort'],
+                         current_order=expenses_data['current_order'],
+                         next_sort_order=expenses_data['next_sort_order'])
 
 @bp.route('/batch_assign_project', methods=['POST'])
 def batch_assign_project():
@@ -576,101 +342,104 @@ def delete_expense(expense_id):
     
     return redirect(url_for('stats.stats'))
 
-@bp.route('/date_expenses/<date>')
-@bp.route('/date_expenses/')
-def date_expenses(date=None):
+@bp.route('/date_expenses')
+def date_expenses():
     # 无需登录验证
     # 为了兼容性，设置一个默认用户信息
     if 'user_id' not in session:
         session['user_id'] = 1
         session['username'] = '默认用户'
     
-    # 获取排序参数
-    # 获取排序参数并保存原始字段名
-    original_sort_by = request.args.get('sort_by', 'project_name')
+    # 获取筛选参数
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    sort_by = request.args.get('sort_by', 'date')
     sort_order = request.args.get('sort_order', 'asc')
     
-    # 验证排序参数并进行字段映射
-    valid_sort_fields = ['project_name', 'date', 'category', 'purpose', 'amount', 'note']
-    
-    # 字段映射：将前端显示的字段名映射到数据库实际列名
-    field_mapping = {
-        'purpose': 'description',
-        'note': 'payment_method'
-    }
-    
-    # 设置排序字段，应用映射
-    if original_sort_by in valid_sort_fields:
-        sort_by = field_mapping.get(original_sort_by, original_sort_by)
-    else:
-        sort_by = 'project_name'
-        original_sort_by = 'project_name'
+    # 验证排序参数
+    valid_sort_fields = ['date', 'category', 'project_name', 'purpose', 'amount', 'note']
+    if sort_by not in valid_sort_fields:
+        sort_by = 'date'
     
     if sort_order not in ['asc', 'desc']:
         sort_order = 'asc'
     
     conn = get_db()
-    
-    # 根据是否提供日期参数构建不同的查询
-    if date:
-        # 获取特定日期的所有费用记录
+    try:
+        # 构建查询语句
         query = f'''
-            SELECT e.*, p.name as project_name, e.description as purpose, e.payment_method as note, 
-                   CASE WHEN re.expense_id IS NOT NULL THEN 1 ELSE 0 END as reimbursement_status
-            FROM expenses e
-            LEFT JOIN projects p ON e.project_id = p.id
-            LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
-            WHERE e.created_by = ? AND e.date = ?
-            ORDER BY {sort_by} {sort_order}
-        '''
-        params = (session['user_id'], date)
-        
-        expenses = conn.execute(query, params).fetchall()
-        
-        # 获取总金额
-        total_amount = conn.execute('''
-            SELECT SUM(amount) as total
-            FROM expenses
-            WHERE created_by = ? AND date = ?
-        ''', (session['user_id'], date)).fetchone()['total'] or 0
-    else:
-        # 获取所有日期的费用记录
-        query = f'''
-            SELECT e.*, p.name as project_name, e.description as purpose, e.payment_method as note, 
-                   CASE WHEN re.expense_id IS NOT NULL THEN 1 ELSE 0 END as reimbursement_status
+            SELECT e.id, e.date, e.category, e.amount, e.description as purpose, e.project_id, 
+                   e.created_at, e.created_by, p.name as project_name, 
+                   CASE WHEN re.expense_id IS NOT NULL THEN 1 ELSE 0 END as reimbursement_status,
+                   e.payment_method as note
             FROM expenses e
             LEFT JOIN projects p ON e.project_id = p.id
             LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
             WHERE e.created_by = ?
-            ORDER BY {sort_by} {sort_order}
         '''
-        params = (session['user_id'],)
+        params = [session['user_id']]
+        
+        # 添加日期筛选条件
+        if date_from:
+            query += ' AND e.date >= ?'
+            params.append(date_from)
+        
+        if date_to:
+            query += ' AND e.date <= ?'
+            params.append(date_to)
+        
+        # 添加排序
+        query += f' ORDER BY {sort_by} {sort_order}'
         
         expenses = conn.execute(query, params).fetchall()
         
-        # 获取总金额
-        total_amount = conn.execute('''
+        # 计算总金额
+        total_query = '''
             SELECT SUM(amount) as total
             FROM expenses
             WHERE created_by = ?
-        ''', (session['user_id'],)).fetchone()['total'] or 0
+        '''
+        total_params = [session['user_id']]
+        
+        if date_from:
+            total_query += ' AND date >= ?'
+            total_params.append(date_from)
+        
+        if date_to:
+            total_query += ' AND date <= ?'
+            total_params.append(date_to)
+            
+        total_amount = conn.execute(total_query, total_params).fetchone()['total'] or 0
+        
+        # 获取所有进行中的项目列表，用于批量修改
+        projects = conn.execute('''
+            SELECT id, name
+            FROM projects
+            WHERE status = ?
+            ORDER BY name
+        ''', ('进行中',)).fetchall()
+        
+        # 计算下一次点击的排序顺序
+        next_sort_order = 'desc' if sort_order == 'asc' else 'asc'
+        
+    except Exception as e:
+        logging.error(f"Error in date_expenses: {e}")
+        expenses = []
+        total_amount = 0
+        projects = []
+        next_sort_order = 'asc'
+    finally:
+        conn.close()
     
-    # 获取所有进行中的项目列表，用于批量分配功能
-    projects = conn.execute('SELECT id, name FROM projects WHERE status = ? ORDER BY name', ('进行中',)).fetchall()
-    
-    conn.close()
-    
-    # 计算下一次点击的排序顺序
-    next_sort_order = 'desc' if sort_order == 'asc' else 'asc'
-    
-    return render_template('date_expenses.html', 
-                         expenses=expenses, 
-                         target_date=date,
+    return render_template('date_expenses.html',
+                         expenses=expenses,
                          total_amount=total_amount,
-                         current_sort=original_sort_by,
+                         projects=projects,
+                         date_from=date_from,
+                         date_to=date_to,
+                         current_sort=sort_by,
                          current_order=sort_order,
-                         next_sort_order=next_sort_order,
-                         projects=projects)
+                         next_sort_order=next_sort_order)
 
 @bp.route('/get_orphan_expenses_total')
 def get_orphan_expenses_total():
@@ -698,3 +467,154 @@ def get_orphan_expenses_total():
         conn.close()
     return jsonify([dict(row) for row in orphan_expenses])
 
+@bp.route('/expense_payment_status')
+def expense_payment_status():
+    """支出回款状态详情"""
+    # 无需登录验证
+    if 'user_id' not in session:
+        session['user_id'] = 1
+        session['username'] = '默认用户'
+    
+    try:
+        expenses = stats_service.get_expense_payment_status()
+        return render_template('expense_payment_status.html', expenses=expenses)
+    except Exception as e:
+        logging.error(f"Error in expense_payment_status route: {e}")
+        flash('获取支出回款状态失败: ' + str(e))
+        return redirect(url_for('stats.stats'))
+
+@bp.route('/project_payment_stats')
+def project_payment_stats():
+    """项目回款统计（支持分页）"""
+    # 无需登录验证
+    if 'user_id' not in session:
+        session['user_id'] = 1
+        session['username'] = '默认用户'
+    
+    try:
+        # 获取分页参数
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        
+        # 验证分页参数
+        if per_page not in [10, 30, 50, 100]:
+            per_page = 10
+        
+        if page < 1:
+            page = 1
+        
+        result = stats_service.get_project_payment_stats(page, per_page)
+        stats = result['stats']
+        total_count = result['total_count']
+        total_pages = result['total_pages']
+        
+        return render_template('project_payment_stats.html', 
+                             stats=stats,
+                             total_count=total_count,
+                             total_pages=total_pages,
+                             current_page=page,
+                             per_page=per_page)
+    except Exception as e:
+        logging.error(f"Error in project_payment_stats route: {e}")
+        flash('获取项目回款统计失败: ' + str(e))
+        return redirect(url_for('stats.stats'))
+
+@bp.route('/project_all_expenses')
+def project_all_expenses():
+    """显示项目所有支出记录（支持分页）"""
+    # 无需登录验证
+    if 'user_id' not in session:
+        session['user_id'] = 1
+        session['username'] = '默认用户'
+    
+    try:
+        project_id = request.args.get('project_id', type=int)
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        
+        # 验证分页参数
+        if per_page not in [10, 30, 50, 100]:
+            per_page = 10
+        
+        if page < 1:
+            page = 1
+        
+        if project_id is None:
+            flash('项目ID参数缺失')
+            return redirect(url_for('stats.project_payment_stats'))
+        
+        # 获取项目所有支出记录（分页）
+        result = stats_service.get_all_expenses_by_project(project_id, page, per_page)
+        expenses = result['expenses']
+        total_count = result['total_count']
+        total_pages = result['total_pages']
+        
+        # 获取项目名称
+        project_name = '所有项目'
+        if project_id == 0:
+            project_name = '无项目'
+        elif project_id > 0:
+            conn = get_db()
+            project = conn.execute('SELECT name FROM projects WHERE id = ?', (project_id,)).fetchone()
+            conn.close()
+            project_name = project['name'] if project else '未知项目'
+        
+        title = f"{project_name} - 所有支出记录"
+        
+        return render_template('project_all_expenses.html', 
+                             expenses=expenses, 
+                             title=title,
+                             project_id=project_id,
+                             project_name=project_name,
+                             total_count=total_count,
+                             total_pages=total_pages,
+                             current_page=page,
+                             per_page=per_page)
+    except Exception as e:
+        logging.error(f"Error in project_all_expenses route: {e}")
+        flash('获取项目支出记录失败: ' + str(e))
+        return redirect(url_for('stats.project_payment_stats'))
+
+@bp.route('/expense_payment_details')
+def expense_payment_details():
+    """支出回款详情页面"""
+    # 无需登录验证
+    if 'user_id' not in session:
+        session['user_id'] = 1
+        session['username'] = '默认用户'
+    
+    try:
+        project_id = request.args.get('project_id', type=int)
+        status = request.args.get('status')
+        
+        # 获取符合条件的支出记录
+        expenses = stats_service.get_expenses_by_payment_status(project_id, status)
+        
+        # 设置页面标题
+        status_names = {
+            'unreimbursed': '未报销',
+            'reimbursed_unpaid': '已报销未回款',
+            'reimbursed_paid': '已回款'
+        }
+        
+        project_name = '所有项目'
+        if project_id is not None:
+            if project_id > 0:
+                # 获取项目名称
+                conn = get_db()
+                project = conn.execute('SELECT name FROM projects WHERE id = ?', (project_id,)).fetchone()
+                conn.close()
+                project_name = project['name'] if project else '未知项目'
+            else:
+                project_name = '无项目'
+        
+        title = f"{project_name} - {status_names.get(status, '未知状态')}支出详情"
+        
+        return render_template('expense_payment_details.html', 
+                             expenses=expenses, 
+                             title=title,
+                             status=status)
+    except Exception as e:
+        logging.error(f"Error in expense_payment_details route: {e}")
+        flash('获取支出详情失败: ' + str(e))
+        return redirect(url_for('stats.project_payment_stats'))

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card shadow">
+    <div class="card-body">
+        <h2 class="card-title mb-4">所有项目</h2>
+        
+        {% if projects %}
+        <!-- 分页大小选择器 -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <form id="per-page-form" class="form-inline">
+                    <label for="per_page" class="mr-2">每页显示:</label>
+                    <select id="per_page" name="per_page" class="form-control" onchange="changePerPage()">
+                        <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                        <option value="30" {% if per_page == 30 %}selected{% endif %}>30</option>
+                        <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                        <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+                    </select>
+                    <span class="ml-2">条记录</span>
+                </form>
+            </div>
+            <div class="col-md-6 text-md-right">
+                <p class="mt-2 mb-0">总共 {{ total_projects }} 个项目</p>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>项目信息</th>
+                        <th>状态</th>
+                        <th>支出总额</th>
+                        <th style="font-weight: bold;">未报销金额</th>
+                        <th>已提交金额</th>
+                        <th>已回款金额</th>
+                        <th>未回款金额</th>
+                        <th>备注</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for project in projects %}
+                    <tr>
+                        <td><small>({{ project.id }})</small>{{ project.name }}</td>
+                        <td>
+                            <span class="badge {% if project.status == '进行中' %}bg-primary{% elif project.status == '已完成' %}bg-success{% else %}bg-secondary{% endif %}">
+                                {{ project.status }}
+                            </span>
+                        </td>
+                        <td>{{ "¥%.2f"|format(project.total_expense or 0) }}</td>
+                        <td style="font-weight: bold;">{{ "¥%.2f"|format((project.total_expense or 0) - (project.submitted_amount or 0)) }}</td>
+                        <td>{{ "¥%.2f"|format(project.submitted_amount or 0) }}</td>
+                        <td>{{ "¥%.2f"|format(project.paid_amount or 0) }}</td>
+                        <td>{{ "¥%.2f"|format(project.unpaid_amount or 0) }}</td>
+                        <td>{{ project.note }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 分页控件 -->
+        {% if total_pages > 1 %}
+        <nav aria-label="项目分页">
+            <ul class="pagination justify-content-center">
+                <!-- 上一页 -->
+                {% if page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('projects.view_all_projects', page=page-1, per_page=per_page) }}">上一页</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">上一页</span>
+                </li>
+                {% endif %}
+                
+                <!-- 页码 -->
+                {% for p in range([1, page-2]|max, [total_pages+1, page+3]|min) %}
+                {% if p == page %}
+                <li class="page-item active">
+                    <span class="page-link">{{ p }}</span>
+                </li>
+                {% else %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('projects.view_all_projects', page=p, per_page=per_page) }}">{{ p }}</a>
+                </li>
+                {% endif %}
+                {% endfor %}
+                
+                <!-- 下一页 -->
+                {% if page < total_pages %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('projects.view_all_projects', page=page+1, per_page=per_page) }}">下一页</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">下一页</span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        
+        {% else %}
+        <div class="alert alert-info">
+            暂无项目数据
+        </div>
+        {% endif %}
+        
+        <div class="mt-3">
+            <a href="{{ url_for('stats.stats') }}" class="btn btn-secondary">返回统计页面</a>
+        </div>
+    </div>
+</div>
+
+<script>
+function changePerPage() {
+    const perPage = document.getElementById('per_page').value;
+    const url = new URL(window.location);
+    url.searchParams.set('per_page', perPage);
+    url.searchParams.set('page', 1); // 重置到第一页
+    window.location.href = url;
+}
+</script>
+{% endblock %}

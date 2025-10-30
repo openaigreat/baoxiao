@@ -2,9 +2,11 @@ from flask import Blueprint, render_template, redirect, url_for, request, sessio
 import sqlite3
 from datetime import datetime
 import logging
-from models import get_db  # 从models.py导入统一的数据库连接函数
+from models import get_db
+from services.reimbursement_service import ReimbursementService
 
 bp = Blueprint('reimbursements', __name__)
+reimbursement_service = ReimbursementService()
 
 def get_db_connection():
     # 使用models.py中的get_db函数，确保使用同一个数据库文件
@@ -13,34 +15,11 @@ def get_db_connection():
 @bp.route('/fetch_reimbursements', methods=['GET'])
 def fetch_reimbursements():
     # 获取报销单列表，用于批量添加到报销单功能
-    conn = get_db_connection()
     try:
-        # 获取所有草稿或已拒绝状态的报销单
-        reimbursements = conn.execute('''
-            SELECT r.*,
-                   COUNT(re.id) as expense_count,
-                   COALESCE(SUM(re.reimbursement_amount), 0) as calculated_total
-            FROM reimbursements r
-            LEFT JOIN reimbursement_expenses re ON r.id = re.reimbursement_id
-            WHERE r.status IN ('草稿', '已拒绝')
-            GROUP BY r.id
-            ORDER BY r.created_at DESC
-        ''').fetchall()
-        
-        # 转换为字典列表
-        result = []
-        for r in reimbursements:
-            result.append({
-                'id': r['id'],
-                'submission_date': r['submit_date'],
-                'total_amount': r['calculated_total'] or 0,
-                'status': r['status']
-            })
-        
-        conn.close()
+        result = reimbursement_service.get_draft_and_rejected_reimbursements()
         return jsonify({'reimbursements': result})
     except Exception as e:
-        conn.close()
+        logging.error(f"Error in fetch_reimbursements: {e}")
         return jsonify({'reimbursements': []})
 
 @bp.route('/reimbursements')
@@ -175,14 +154,8 @@ def add_reimbursement():
 def edit_reimbursement(reimbursement_id):
     # 获取回款记录的函数
     def get_reimbursement_payments(reimbursement_id):
-        conn = get_db_connection()
-        payments = conn.execute('''
-            SELECT * FROM reimbursement_payments 
-            WHERE reimbursement_id = ? 
-            ORDER BY payment_date DESC
-        ''', (reimbursement_id,)).fetchall()
-        conn.close()
-        return payments
+        return reimbursement_service.get_reimbursement_payments(reimbursement_id)
+    
     # 无需登录验证
     if 'user_id' not in session:
         session['user_id'] = 1
@@ -271,7 +244,7 @@ def edit_reimbursement(reimbursement_id):
     
     # 获取已关联的支出记录
     attached_expenses = conn.execute('''
-        SELECT e.*, re.reimbursement_amount, p.name as project_name
+        SELECT e.*, e.description as purpose, re.reimbursement_amount, p.name as project_name
         FROM reimbursement_expenses re
         JOIN expenses e ON re.expense_id = e.id
         LEFT JOIN projects p ON e.project_id = p.id
@@ -286,7 +259,7 @@ def edit_reimbursement(reimbursement_id):
     
     # 获取可添加的支出记录（未被任何报销单关联的）
     available_expenses = conn.execute('''
-        SELECT e.*, p.name as project_name
+        SELECT e.*, e.description as purpose, p.name as project_name
         FROM expenses e
         LEFT JOIN projects p ON e.project_id = p.id
         WHERE e.id NOT IN (
@@ -315,60 +288,18 @@ def add_expense_to_reimbursement():
         session['user_id'] = 1
         session['username'] = '默认用户'
     
-    conn = get_db_connection()
-    
     try:
         reimbursement_id = request.form.get('reimbursement_id', type=int)
         expense_id = request.form.get('expense_id', type=int)
         reimbursement_amount = request.form.get('reimbursement_amount', type=float)
         
-        # 验证报销单是否存在且状态允许编辑
-        reimbursement = conn.execute('''
-            SELECT * FROM reimbursements WHERE id = ?
-        ''', (reimbursement_id,)).fetchone()
+        result = reimbursement_service.add_expense_to_reimbursement(
+            reimbursement_id, expense_id, reimbursement_amount, session)
         
-        if not reimbursement:
-            conn.close()
-            return jsonify({'success': False, 'error': '报销单不存在'})
-        
-        if reimbursement['status'] not in ['草稿', '已拒绝']:
-            conn.close()
-            return jsonify({'success': False, 'error': '只有草稿或已拒绝状态的报销单可以添加支出记录'})
-        
-        # 验证支出记录是否存在
-        expense = conn.execute('''
-            SELECT * FROM expenses WHERE id = ?
-        ''', (expense_id,)).fetchone()
-        
-        if not expense:
-            conn.close()
-            return jsonify({'success': False, 'error': '支出记录不存在'})
-        
-        # 检查支出记录是否已关联到其他报销单
-        existing = conn.execute('''
-            SELECT 1 FROM reimbursement_expenses WHERE expense_id = ?
-        ''', (expense_id,)).fetchone()
-        
-        if existing:
-            conn.close()
-            return jsonify({'success': False, 'error': '该支出记录已关联到其他报销单'})
-        
-        # 添加关联
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        conn.execute('''
-            INSERT INTO reimbursement_expenses (reimbursement_id, expense_id, reimbursement_amount, added_date)
-            VALUES (?, ?, ?, ?)
-        ''', (reimbursement_id, expense_id, reimbursement_amount, current_time))
-        
-        conn.commit()
-        conn.close()
-        
-        return jsonify({'success': True})
+        return jsonify(result)
     except Exception as e:
-        conn.rollback()
-        conn.close()
+        logging.error(f"Error in add_expense_to_reimbursement route: {e}")
         return jsonify({'success': False, 'error': str(e)})
-
 
 @bp.route('/add_reimbursement_payment/<int:reimbursement_id>', methods=['POST'])
 def add_reimbursement_payment(reimbursement_id):
@@ -377,68 +308,18 @@ def add_reimbursement_payment(reimbursement_id):
         session['user_id'] = 1
         session['username'] = '默认用户'
     
-    conn = get_db_connection()
-    
     try:
-        # 验证报销单是否存在
-        reimbursement = conn.execute('''
-            SELECT * FROM reimbursements WHERE id = ?
-        ''', (reimbursement_id,)).fetchone()
-        
-        if not reimbursement:
-            conn.close()
-            return jsonify({'success': False, 'error': '报销单不存在'})
-        
-        # 非草稿状态的报销单都可以添加回款
-        if reimbursement['status'] == '草稿':
-            conn.close()
-            return jsonify({'success': False, 'error': '草稿状态的报销单不能添加回款'})
-        
         # 获取回款信息
         payment_date = request.form.get('payment_date')
         amount = request.form.get('amount', type=float)
         note = request.form.get('note', '')
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
-        # 验证必填字段
-        if not payment_date or amount is None or amount <= 0:
-            conn.close()
-            return jsonify({'success': False, 'error': '回款日期和金额为必填项，金额必须大于0'})
+        result = reimbursement_service.add_reimbursement_payment(
+            reimbursement_id, payment_date, amount, note)
         
-        # 添加回款记录
-        conn.execute('''
-            INSERT INTO reimbursement_payments 
-            (reimbursement_id, payment_date, amount, note, created_at)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (reimbursement_id, payment_date, amount, note, current_time))
-        
-        # 计算总回款金额
-        total_paid = conn.execute('''
-            SELECT SUM(amount) as total FROM reimbursement_payments 
-            WHERE reimbursement_id = ?
-        ''', (reimbursement_id,)).fetchone()['total'] or 0
-        
-        # 更新报销单的总回款金额
-        conn.execute('''
-            UPDATE reimbursements SET total_paid = ? 
-            WHERE id = ?
-        ''', (total_paid, reimbursement_id))
-        
-        # 如果回款金额等于或超过报销总额，更新状态为'已回款'
-        if total_paid >= reimbursement['total_amount']:
-            conn.execute('''
-                UPDATE reimbursements SET status = '已回款' 
-                WHERE id = ?
-            ''', (reimbursement_id,))
-        
-        conn.commit()
-        conn.close()
-        
-        return jsonify({'success': True})
+        return jsonify(result)
     except Exception as e:
-        conn.rollback()
-        conn.close()
-        logging.error(f"添加回款记录时出错: {e}")
+        logging.error(f"Error in add_reimbursement_payment route: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @bp.route('/add_expenses_to_reimbursement', methods=['POST'])
@@ -448,63 +329,17 @@ def add_expenses_to_reimbursement():
         session['user_id'] = 1
         session['username'] = '默认用户'
     
-    conn = get_db_connection()
-    
     try:
         reimbursement_id = request.form.get('reimbursement_id', type=int)
         expense_ids_str = request.form.get('expense_ids', '')
         expense_ids = [int(id.strip()) for id in expense_ids_str.split(',') if id.strip()]
         
-        # 验证报销单是否存在且状态允许编辑
-        reimbursement = conn.execute('''
-            SELECT * FROM reimbursements WHERE id = ?
-        ''', (reimbursement_id,)).fetchone()
+        result = reimbursement_service.add_multiple_expenses_to_reimbursement(
+            reimbursement_id, expense_ids, session)
         
-        if not reimbursement:
-            conn.close()
-            return jsonify({'success': False, 'error': '报销单不存在'})
-        
-        if reimbursement['status'] not in ['草稿', '已拒绝']:
-            conn.close()
-            return jsonify({'success': False, 'error': '只有草稿或已拒绝状态的报销单可以添加支出记录'})
-        
-        # 开始事务
-        conn.execute('BEGIN TRANSACTION')
-        
-        added_count = 0
-        for expense_id in expense_ids:
-            # 验证支出记录是否存在
-            expense = conn.execute('''
-                SELECT * FROM expenses WHERE id = ?
-            ''', (expense_id,)).fetchone()
-            
-            if not expense:
-                continue
-            
-            # 检查支出记录是否已关联到其他报销单
-            existing = conn.execute('''
-                SELECT 1 FROM reimbursement_expenses WHERE expense_id = ?
-            ''', (expense_id,)).fetchone()
-            
-            if existing:
-                continue
-            
-            # 添加关联（使用原始金额）
-            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            conn.execute('''
-                INSERT INTO reimbursement_expenses (reimbursement_id, expense_id, reimbursement_amount, added_date)
-                VALUES (?, ?, ?, ?)
-            ''', (reimbursement_id, expense_id, expense['amount'], current_time))
-            
-            added_count += 1
-        
-        conn.commit()
-        conn.close()
-        
-        return jsonify({'success': True, 'count': added_count})
+        return jsonify(result)
     except Exception as e:
-        conn.rollback()
-        conn.close()
+        logging.error(f"Error in add_expenses_to_reimbursement route: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @bp.route('/remove_expense_from_reimbursement', methods=['POST'])
