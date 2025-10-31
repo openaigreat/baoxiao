@@ -53,18 +53,24 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand" href="/">报销自用</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
     
             <div class="collapse navbar-collapse" id="navbarNav">
-                <div class="navbar-nav mr-auto">
+                <!-- 主要导航项 -->
+                <div class="navbar-nav mb-3 mb-lg-0">
                     <a class="nav-link" href="/add_expense">记录支出</a>
                     <a class="nav-link" href="/stats">项目统计</a>
                     <a class="nav-link" href="/category_stats">费用分类</a>
                     <a class="nav-link" href="/reimbursements">报销管理</a>
                 </div>
                 
+                <!-- 用户信息和操作 -->
                 <div class="navbar-nav ms-auto">
                     {% if session.username %}
-                        <span class="nav-link disabled me-2">欢迎, {{ session.username }}</span>
+                        <span class="nav-link disabled me-2 d-none d-lg-block">欢迎, {{ session.username }}</span>
+                        <span class="nav-link disabled mb-2 d-block d-lg-none">欢迎, {{ session.username }}</span>
                         <a class="nav-link" href="/change_password">修改密码</a>
                         <a class="nav-link text-danger" href="/logout">登出</a>
                     {% endif %}

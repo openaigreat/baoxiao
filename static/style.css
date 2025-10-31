@@ -1,126 +1,524 @@
-/* 移动端优化 */
-@media (max-width: 768px) {
-    .container {
-        padding: 0 15px;
-    }
-    .table-responsive {
-        font-size: 14px;
-        overflow-x: auto;
-    }
-    /* 表格单元格适应小屏幕 */
-    table th, table td {
-        padding: 8px 4px;
-        font-size: 14px;
-    }
-    /* 确保按钮在移动端更易于点击 */
-    .btn {
-        padding: 10px 15px;
-        font-size: 14px;
-        min-height: 44px; /* 满足触摸目标大小要求 */
-    }
-    /* 表单元素适配移动端 */
-    .form-control, .form-select {
-        padding: 10px;
-        font-size: 16px;
-        min-height: 44px;
-    }
-    /* 调整导航栏间距 */
-    .navbar-nav .nav-link {
-        padding: 12px 10px;
-    }
-} /* 关闭媒体查询 */
-
-/* 确保导航栏始终展开显示 */
-.navbar-collapse {
-    display: flex !important;
-    justify-content: flex-end !important;
-    flex-basis: auto !important;
+/* 通用基础样式 */
+* {
+    box-sizing: border-box;
 }
 
-/* 确保导航项始终显示 */
-.navbar-nav {
-    display: flex !important;
-    flex-direction: row !important;
-    margin: 0 !important;
-}
-
-/* 调整导航项之间的间距 */
-.navbar-nav .nav-link {
-    margin-left: 1rem !important;
-    margin-right: 0 !important;
-}
-    /* 调整卡片样式 */
-    .card {
-        margin-bottom: 15px;
-        font-size: 14px;
-    }
-    /* 调整统计页面样式 */
-    .row > div {
-        margin-bottom: 15px;
-    }
-    /* 隐藏小屏幕上不必要的内容 */
-    .hide-mobile {
-        display: none;
-    }
-    /* 优化复选框大小 */
-    .form-check-input {
-        width: 18px;
-        height: 18px;
-    }
-}
-
-/* 通用样式 */
-.card {
-    margin-bottom: 20px;
-    border-radius: 10px;
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* 去除导航栏的层叠（阴影）效果 */
 .navbar {
     box-shadow: none !important;
 }
+
+/* 卡片基础样式 */
+.card {
+    margin-bottom: 20px;
+    border-radius: 10px;
+    transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 列表项过渡效果 */
 .list-group-item {
     transition: all 0.3s;
 }
+
 .list-group-item:hover {
     transform: translateX(5px);
 }
+
+/* 按钮过渡效果 */
 .btn {
     transition: all 0.2s;
 }
+
 /* 确保表格在所有设备上都有响应式包装 */
 .table-responsive {
     width: 100%;
     margin-bottom: 1rem;
     overflow-x: auto;
 }
-/* 确保链接在移动端更易点击 */
+
+/* 确保链接可点击区域 */
 a {
     display: inline-block;
     padding: 2px 0;
 }
-/* 优化按钮组在移动端的显示 */
-.btn-group {
-    width: 100%;
-}
-.btn-group .btn {
-    flex: 1;
-}
-/* 确保输入框在小屏幕上有足够宽度 */
-input[type="text"],
-input[type="number"],
-input[type="date"],
-select,
-textarea {
-    width: 100%;
-}
-/* 优化表格行操作按钮组 */
+
+/* 操作按钮组基础样式 */
 .action-buttons {
     display: flex;
     gap: 5px;
     flex-wrap: wrap;
 }
-/* 调整移动端的间距 */
+
+/* 基础间距 */
 .mt-4, .my-4 {
     margin-top: 1.5rem !important;
+}
+
+/* 移动端优化 - 小屏幕设备 */
+@media (max-width: 768px) {
+    /* 容器内边距调整 */
+    .container {
+        padding: 0 15px;
+    }
+    
+    /* 表格响应式优化 */
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin-bottom: 15px;
+        width: 100% !important;
+        display: block;
+        position: relative;
+    }
+    /* 表格单元格适应小屏幕 */
+    table th, table td {
+        padding: 12px 8px; /* 增加内边距避免内容重叠 */
+        font-size: 14px; /* 稍微减小字体避免重叠 */
+        white-space: nowrap;
+        min-width: 80px;
+        height: auto;
+        line-height: 1.4; /* 增加行高 */
+    }
+    
+    /* 优化表格列宽分布 */
+    table th:nth-child(1), table td:nth-child(1) { /* 日期列 */
+        min-width: 80px;
+        font-size: 14px;
+    }
+    
+    table th:nth-child(2), table td:nth-child(2) { /* 用途列 */
+        min-width: 100px;
+        max-width: 150px; /* 增大最大宽度 */
+        font-size: 14px;
+        white-space: normal; /* 允许换行避免重叠 */
+    }
+    
+    table th:nth-child(5), table td:nth-child(5) { /* 金额列 */
+        min-width: 70px;
+        font-weight: bold;
+    }
+    
+    /* 复选框列最小化 */
+    table th:nth-child(4), table td:nth-child(4) {
+        min-width: 40px;
+        width: 40px;
+        text-align: center;
+    }
+    
+    /* 操作按钮列最小化 */
+    table th:last-child, table td:last-child {
+        min-width: 80px; /* 稍微增大操作列宽度 */
+        width: 80px;
+    }
+    
+    /* 在极小屏幕上隐藏部分列 */
+    @media (max-width: 480px) {
+        table th:nth-child(6), table td:nth-child(6) { /* 备注列 */
+            display: none;
+        }
+        
+        table th:nth-child(3), table td:nth-child(3) { /* 费用类别列 */
+            min-width: 70px;
+        }
+        
+        /* 保持合适的字体大小，不再缩小 */
+        table th, table td {
+            font-size: 13px; /* 进一步减小以避免重叠 */
+            padding: 10px 6px;
+            line-height: 1.3;
+        }
+    }
+    
+    /* 移动端表格行优化 */
+    @media (max-width: 600px) {
+        /* 表格行添加卡片效果 */
+        table tr {
+            display: block;
+            margin-bottom: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        /* 隐藏表头 */
+        table thead {
+            display: none;
+        }
+        
+        /* 单元格垂直排列 */
+        table td {
+            display: block;
+            width: 100%;
+            text-align: right;
+            padding: 8px 12px; /* 增大内边距 */
+            position: relative;
+            border: none;
+            white-space: normal;
+            min-width: auto;
+            font-size: 16px; /* 确保字体大小 */
+        }
+        
+        /* 为每个单元格添加标签 */
+        table td:before {
+            content: attr(data-label);
+            position: absolute;
+            left: 10px;
+            font-weight: bold;
+            color: #6c757d;
+        }
+        
+        /* 设置数据标签 */
+        table td:nth-child(1):before { content: "日期:"; }
+        table td:nth-child(2):before { content: "用途:"; }
+        table td:nth-child(3):before { content: "类别:"; }
+        table td:nth-child(4):before { content: "选择:"; }
+        table td:nth-child(5):before { content: "金额:"; }
+        table td:nth-child(6):before { content: "备注:"; }
+        table td:nth-child(7):before { content: "操作:"; }
+        
+        /* 复选框居中 */
+        table td:nth-child(4) {
+            text-align: center;
+        }
+        
+        /* 操作按钮全宽 */
+        table td:last-child .action-buttons {
+            display: flex;
+            justify-content: flex-end;
+        }
+        
+        /* 总计行特殊处理 */
+        table tr:last-child {
+            display: table-row;
+            margin-bottom: 0;
+            border: none;
+            box-shadow: none;
+        }
+        
+        table tr:last-child td {
+            display: table-cell;
+            text-align: right;
+            padding: 10px;
+        }
+        
+        table tr:last-child td:before {
+            display: none;
+        }
+    }
+    
+    /* 确保按钮在移动端更易于点击 */
+    .btn {
+        padding: 10px 15px;
+        font-size: 14px;
+        min-height: 44px; /* 满足触摸目标大小要求 */
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .btn:last-child {
+        margin-bottom: 0;
+    }
+    
+    /* 按钮组优化 */
+    .btn-group {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    
+    .btn-group .btn {
+        margin-bottom: 5px;
+        width: 100%;
+        flex: auto;
+    }
+    
+    /* 表单元素适配移动端 */
+    .form-control, .form-select {
+        padding: 12px 10px;
+        font-size: 16px;
+        min-height: 48px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    /* 输入框全宽 */
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    select,
+    textarea {
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    /* 调整卡片样式 */
+    .card {
+        margin-bottom: 15px;
+        font-size: 14px;
+        padding: 15px;
+    }
+    
+    /* 调整统计页面样式 */
+    .row > div {
+        margin-bottom: 15px;
+    }
+    
+    /* 隐藏小屏幕上不必要的内容 */
+    .hide-mobile {
+        display: none !important;
+    }
+    
+    /* 优化复选框大小 */
+    .form-check-input {
+        width: 18px;
+        height: 18px;
+        margin-right: 8px;
+    }
+    
+    /* 移动端导航栏适配 */
+    .navbar-collapse {
+        /* 移除强制隐藏，让Bootstrap正常控制折叠 */
+        display: none;
+    }
+    
+    /* 确保在小屏幕上点击按钮能正常折叠 */
+    .navbar-collapse.show {
+        display: flex !important;
+        flex-direction: column;
+        background-color: #212529;
+        width: 100%;
+    }
+    
+    /* 彻底修复表格宽度问题 */
+    /* 确保所有可能包含表格的容器都占满宽度 */
+    body, html {
+        width: 100%;
+        overflow-x: hidden;
+        margin: 0;
+        padding: 0;
+    }
+    
+    .table-responsive {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        position: relative;
+        box-sizing: border-box;
+    }
+    
+    table {
+        width: 100% !important;
+        min-width: 100% !important;
+        border-collapse: collapse;
+        display: table;
+        table-layout: auto;
+        box-sizing: border-box;
+    }
+    
+    /* 确保表格父容器也占满宽度 */
+    .table-responsive > table {
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+    
+    /* 移除可能限制宽度的样式 */
+    .card-body {
+        padding: 15px !important;
+        margin: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+    
+    /* 确保卡片内容占满宽度 */
+    .card {
+        width: 100% !important;
+        margin: 0 !important;
+        margin-bottom: 15px !important;
+        box-sizing: border-box;
+    }
+    
+    /* 确保容器和内容占满宽度 */
+    .container {
+        width: 100% !important;
+        max-width: none !important;
+        padding-left: 15px !important;
+        padding-right: 15px !important;
+        margin: 0 !important;
+        box-sizing: border-box;
+    }
+    
+    /* 确保任何可能包含表格的div都占满宽度 */
+    div {
+        box-sizing: border-box;
+    }
+    
+    /* 确保行容器占满宽度 */
+    .row {
+        width: 100% !important;
+        margin: 0 !important;
+    }
+    
+    /* 确保列容器占满宽度 */
+    .col, .col-1, .col-2, .col-3, .col-4, .col-5, .col-6, .col-7, .col-8, .col-9, .col-10, .col-11, .col-12 {
+        width: 100% !important;
+        padding: 0 !important;
+    }
+    
+    .navbar-nav {
+        flex-direction: column !important;
+        width: 100%;
+    }
+    
+    .navbar-nav .nav-link {
+        padding: 12px 10px;
+        margin-left: 0 !important;
+        margin-bottom: 10px;
+    }
+    
+    .navbar-nav .nav-link:last-child {
+        margin-bottom: 0;
+    }
+    
+    /* 表单布局优化 */
+    form .mb-3 {
+        margin-bottom: 1rem !important;
+    }
+    
+    /* 标题样式调整 */
+    h1, h2, h3, h4, h5, h6 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* 链接样式优化 */
+    a {
+        display: inline-block;
+        padding: 8px 0;
+        font-size: 16px;
+    }
+    
+    /* 操作按钮组优化 */
+    .action-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    /* 间距调整 */
+    .mt-4, .my-4 {
+        margin-top: 1.2rem !important;
+    }
+    
+    .mb-4, .my-4 {
+        margin-bottom: 1.2rem !important;
+    }
+    
+    /* 表单标签调整 */
+    label {
+        font-size: 16px;
+        margin-bottom: 8px;
+        display: block;
+    }
+    
+    /* 警报消息调整 */
+    .alert {
+        padding: 12px;
+        font-size: 14px;
+    }
+    
+    /* 统计数据卡片优化 */
+    .stats-card {
+        text-align: center;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    /* 响应式图片 */
+    img {
+        max-width: 100%;
+        height: auto;
+    }
+    
+    /* 响应式隐藏/显示工具类 */
+    .d-mobile-none {
+        display: none !important;
+    }
+    
+    .d-desktop-none {
+        display: block !important;
+    }
+}
+
+/* 桌面端显示优化 */
+@media (min-width: 769px) {
+    /* 响应式隐藏/显示工具类 */
+    .d-mobile-none {
+        display: block !important;
+    }
+    
+    .d-desktop-none {
+        display: none !important;
+    }
+    
+    /* 确保表格列宽合理 */
+    table {
+        table-layout: fixed;
+        width: 100%;
+    }
+    
+    /* 操作按钮组桌面端显示 */
+    .action-buttons {
+        justify-content: flex-start;
+        flex-direction: row;
+    }
+    
+    /* 确保导航栏始终展开显示 */
+    .navbar-collapse {
+        display: flex !important;
+        justify-content: flex-end !important;
+        flex-basis: auto !important;
+    }
+    
+    /* 确保导航项始终显示 */
+    .navbar-nav {
+        display: flex !important;
+        flex-direction: row !important;
+        margin: 0 !important;
+    }
+    
+    /* 调整导航项之间的间距 */
+    .navbar-nav .nav-link {
+        margin-left: 1rem !important;
+        margin-right: 0 !important;
+        padding: 0.5rem 0;
+    }
+    
+    /* 桌面端按钮不自动全宽 */
+    .btn {
+        width: auto;
+        margin-bottom: 0;
+    }
+    
+    /* 桌面端按钮组 */
+    .btn-group {
+        width: auto;
+    }
+    
+    .btn-group .btn {
+        margin-bottom: 0;
+        width: auto;
+    }
 }

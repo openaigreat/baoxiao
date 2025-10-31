@@ -18,7 +18,7 @@
             
             {% if reimbursement.status != '草稿' %}
             <a href="{{ url_for('reimbursements.export_reimbursement', reimbursement_id=reimbursement.id) }}" 
-               class="btn btn-sm btn-outline-primary float-end ms-2">分类汇总后导出</a>
+               class="btn btn-sm btn-outline-primary float-end ms-2">导出分类汇总结果</a>
             {% endif %}
             
             {% if reimbursement.status == '草稿' or reimbursement.status == '已拒绝' %}
