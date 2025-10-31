@@ -6,10 +6,10 @@
         <h2 class="card-title mb-4">项目统计</h2>
         <div class="mb-3">
             <a href="{{ url_for('projects.add_project') }}" class="btn btn-primary">添加项目</a>
-            <a href="{{ url_for('projects.manage_projects') }}" class="btn btn-secondary ml-2">项目管理</a>
+            <a href="{{ url_for('projects.manage_projects') }}" class="btn btn-secondary ml-2">项目状态</a>
             <a href="{{ url_for('projects.view_all_projects') }}" class="btn btn-info ml-2">查看所有项目</a>
-            <a href="{{ url_for('stats.project_payment_stats') }}" class="btn btn-success ml-2">项目回款统计</a>
-            <a href="{{ url_for('stats.expense_payment_status') }}" class="btn btn-warning ml-2">支出回款详情</a>
+            <a href="{{ url_for('stats.project_payment_stats') }}" class="btn btn-success ml-2">项目报销&回款</a>
+            <a href="{{ url_for('stats.expense_payment_status') }}" class="btn btn-warning ml-2">单笔支出统计</a>
         </div>
         <div class="table-responsive">
             <table class="table table-hover">

@@ -213,8 +213,44 @@ expenseCheckboxes.forEach(checkbox => {
 });
 
 function updateBatchButtonState() {
-    const checkedCount = document.querySelectorAll('.expense-checkbox:checked').length;
+    const checkedCheckboxes = document.querySelectorAll('.expense-checkbox:checked');
+    const checkedCount = checkedCheckboxes.length;
+    
+    // 更新批量按钮状态
     batchAssignBtn.disabled = checkedCount === 0;
+    
+    // 更新选中的支出ID
+    const selectedIds = Array.from(checkedCheckboxes).map(checkbox => checkbox.value);
+    selectedExpensesInput.value = selectedIds.join(',');
+    
+    // 显示或隐藏选中统计信息
+    const selectedStats = document.getElementById('selected-stats');
+    const selectedCountElem = document.getElementById('selected-count');
+    const selectedAmountElem = document.getElementById('selected-amount');
+    
+    if (checkedCount > 0) {
+        selectedStats.style.display = 'block';
+        selectedCountElem.textContent = checkedCount;
+        
+        // 计算选中支出的总金额
+        let totalAmount = 0;
+        checkedCheckboxes.forEach(checkbox => {
+            const row = checkbox.closest('tr');
+            const amountCell = row.querySelector('td:nth-child(5)'); // 金额列在第5列
+            const amountText = amountCell.textContent.trim();
+            const amount = parseFloat(amountText.replace('¥', '').replace(',', ''));
+            if (!isNaN(amount)) {
+                totalAmount += amount;
+            }
+        });
+        
+        // 更新总金额显示，保留两位小数
+        selectedAmountElem.textContent = totalAmount.toFixed(2);
+    } else {
+        selectedStats.style.display = 'none';
+        selectedCountElem.textContent = '0';
+        selectedAmountElem.textContent = '0.00';
+    }
 }
 
 // 为每一行添加点击事件
