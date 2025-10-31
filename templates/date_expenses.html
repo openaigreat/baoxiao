@@ -5,129 +5,165 @@
     .smaller-text {
         font-size: 0.6em; /* 调整为你需要的大小 */
     }
+    .expense-card {
+        transition: all 0.3s ease;
+    }
+    .expense-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .expense-card.selected {
+        border: 2px solid #0d6efd;
+        background-color: #f8f9ff;
+        box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+    }
+    .sort-options {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+    .sort-options a {
+        text-decoration: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+    }
+    .sort-options a:hover {
+        background-color: #f8f9fa;
+    }
+    .stat-card {
+        margin-bottom: 1rem;
+    }
 </style>
-<div class="card shadow">
+<div class="card shadow mb-4">
     <div class="card-body">
-        <h2 class="card-title mb-4">日期明细 <small class="smaller-text">({{ target_date }}) - {{ expenses|length }}</small>
-        <button id="batch-category-btn" class="btn btn-sm float-end me-2" style="background-color: rgb(132, 112, 255); color: white;" disabled>
-            更改费用分类
-        </button>
-        <button id="batch-assign-btn" class="btn btn-sm btn-primary float-end me-2" disabled>
-            更改归属项目
-        </button>
-        </h2>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="card-title mb-0">日期明细 <small class="smaller-text">({{ target_date }}) - {{ expenses|length }}</small></h2>
+            <div>
+                <button id="batch-category-btn" class="btn btn-sm me-2" style="background-color: rgb(132, 112, 255); color: white;" disabled>
+                    更改费用分类
+                </button>
+                <button id="batch-assign-btn" class="btn btn-sm btn-primary" disabled>
+                    更改归属项目
+                </button>
+            </div>
+        </div>
         
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th style="width: 150px;">
-                            <a href="{{ url_for('stats.date_expenses', date=target_date, sort_by='project_name', sort_order=(next_sort_order if current_sort == 'project_name' else 'asc')) }}">
-                                项目
-                                {% if current_sort == 'project_name' %}
-                                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
-                                {% else %}
-                                <i class="bi bi-sort"></i>
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th style="width: 120px;">
-                            <a href="{{ url_for('stats.date_expenses', date=target_date, sort_by='date', sort_order=(next_sort_order if current_sort == 'date' else 'asc')) }}">
-                                日期
-                                {% if current_sort == 'date' %}
-                                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
-                                {% else %}
-                                <i class="bi bi-sort"></i>
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th>
-                            <a href="{{ url_for('stats.date_expenses', date=target_date, sort_by='category', sort_order=(next_sort_order if current_sort == 'category' else 'asc')) }}">
-                                类别
-                                {% if current_sort == 'category' %}
-                                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
-                                {% else %}
-                                <i class="bi bi-sort"></i>
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th>
-                            <a href="{{ url_for('stats.date_expenses', date=target_date, sort_by='purpose', sort_order=(next_sort_order if current_sort == 'purpose' else 'asc')) }}">
-                                用途
-                                {% if current_sort == 'purpose' %}
-                                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
-                                {% else %}
-                                <i class="bi bi-sort"></i>
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th><input type="checkbox" id="select-all"></th>
-                        <th>
-                            <a href="{{ url_for('stats.date_expenses', date=target_date, sort_by='amount', sort_order=(next_sort_order if current_sort == 'amount' else 'asc')) }}">
-                                金额
-                                {% if current_sort == 'amount' %}
-                                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
-                                {% else %}
-                                <i class="bi bi-sort"></i>
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th>
-                            <a href="{{ url_for('stats.date_expenses', date=target_date, sort_by='note', sort_order=(next_sort_order if current_sort == 'note' else 'asc')) }}">
-                                备注
-                                {% if current_sort == 'note' %}
-                                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
-                                {% else %}
-                                <i class="bi bi-sort"></i>
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th style="width: 100px;">操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for expense in expenses %}
-                    <tr>
-                        <td>
+        <!-- 排序选项 -->
+        <div class="sort-options">
+            <span class="small text-muted">排序:</span>
+            <a href="{{ url_for('stats.date_expenses', date=target_date, sort_by='project_name', sort_order=(next_sort_order if current_sort == 'project_name' else 'asc')) }}">
+                项目
+                {% if current_sort == 'project_name' %}
+                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                {% endif %}
+            </a>
+            <a href="{{ url_for('stats.date_expenses', date=target_date, sort_by='date', sort_order=(next_sort_order if current_sort == 'date' else 'asc')) }}">
+                日期
+                {% if current_sort == 'date' %}
+                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                {% endif %}
+            </a>
+            <a href="{{ url_for('stats.date_expenses', date=target_date, sort_by='category', sort_order=(next_sort_order if current_sort == 'category' else 'asc')) }}">
+                类别
+                {% if current_sort == 'category' %}
+                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                {% endif %}
+            </a>
+            <a href="{{ url_for('stats.date_expenses', date=target_date, sort_by='purpose', sort_order=(next_sort_order if current_sort == 'purpose' else 'asc')) }}">
+                用途
+                {% if current_sort == 'purpose' %}
+                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                {% endif %}
+            </a>
+            <a href="{{ url_for('stats.date_expenses', date=target_date, sort_by='amount', sort_order=(next_sort_order if current_sort == 'amount' else 'asc')) }}">
+                金额
+                {% if current_sort == 'amount' %}
+                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                {% endif %}
+            </a>
+            <a href="{{ url_for('stats.date_expenses', date=target_date, sort_by='note', sort_order=(next_sort_order if current_sort == 'note' else 'asc')) }}">
+                备注
+                {% if current_sort == 'note' %}
+                <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                {% endif %}
+            </a>
+        </div>
+        
+        <!-- 全选复选框和选中统计 -->
+        <div class="mb-3">
+            <label class="form-check-label me-3">
+                <input type="checkbox" id="select-all" class="form-check-input">
+                全选
+            </label>
+            <span id="selected-count" class="text-sm text-muted">已选择: 0 项</span>
+        </div>
+        
+        <!-- 费用记录卡片网格 -->
+        <div class="row">
+            {% if expenses %}
+            {% for expense in expenses %}
+            <div class="col-lg-4 col-md-6 mb-3">
+                <div class="expense-card card p-3">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
                             {% if expense.project_name %}
-                            <a href="{{ url_for('stats.expenses', project_id=expense.project_id) }}">
-                                {{ expense.project_name }}
-                            </a>
+                            <a href="{{ url_for('stats.expenses', project_id=expense.project_id) }}" class="text-primary font-medium">{{ expense.project_name }}</a>
                             {% else %}
                             <span class="text-muted">未分配</span>
                             {% endif %}
-                        </td>
-                        <td>{{ expense.date }}</td>
-                        <td>{{ expense.category or '未分类' }}</td>
-                        <td>{{ expense.purpose }}</td>
-                        <td><input type="checkbox" class="expense-checkbox" value="{{ expense.id }}"></td>
-                        <td>{{ "¥%.2f"|format(expense.amount or 0) }}</td>
-                        <td>{{ expense.note or '-' }}</td>
-                        <td>
-                            <div class="action-buttons">
-                                <a href="{{ url_for('stats.edit_expense', expense_id=expense.id) }}" class="btn btn-sm btn-warning">
-                                    编辑
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="8" class="text-center text-muted">暂无费用记录</td>
-                    </tr>
-                    {% endfor %}
-                    <tr>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td><strong>总计: ¥{{ "%.2f"|format(total_amount) }}</strong></td>
-                        <td colspan="2"></td>
-                    </tr>
-                </tbody>
-            </table></div>
+                        </div>
+                        <input type="checkbox" class="expense-checkbox form-check-input" value="{{ expense.id }}">
+                    </div>
+                    <!-- 所有信息标题和数值在同一行显示 -->
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">日期：</span>
+                        <span>{{ expense.date }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">类别：</span>
+                        <span>{{ expense.category or '未分类' }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">用途：</span>
+                        <span>{{ expense.purpose }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">金额：</span>
+                        <span style="font-size: 12px; font-weight: bold; color: #0d6efd;">¥{{ "%.2f"|format(expense.amount or 0) }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">备注：</span>
+                        <span style="font-size: 12px;">{{ expense.note or '-' }}</span>
+                    </div>
+                    <div class="mt-2 text-end">
+                        <a href="{{ url_for('stats.edit_expense', expense_id=expense.id) }}" class="btn btn-sm btn-warning">
+                            编辑
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="col-12">
+                <div class="card p-5 text-center">
+                    <p class="text-muted">暂无费用记录</p>
+                </div>
+            </div>
+            {% endif %}
         </div>
+        
+        <!-- 总计卡片 -->
+        {% if expenses %}
+        <div class="mt-4">
+            <div class="stat-card card p-3 bg-light">
+                <div class="d-flex justify-content-end">
+                    <h5 class="font-bold">总计: ¥{{ "%.2f"|format(total_amount) }}</h5>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -225,68 +261,75 @@ const selectAllCheckbox = document.getElementById('select-all');
 const expenseCheckboxes = document.querySelectorAll('.expense-checkbox');
 const batchAssignBtn = document.getElementById('batch-assign-btn');
 const batchCategoryBtn = document.getElementById('batch-category-btn');
+const selectedCountElement = document.getElementById('selected-count');
 
 selectAllCheckbox.addEventListener('change', function() {
     expenseCheckboxes.forEach(checkbox => {
         checkbox.checked = this.checked;
-        // 更新行样式
-        const row = checkbox.closest('tr');
-        if (this.checked) {
-            row.classList.add('bg-primary-subtle');
-        } else {
-            row.classList.remove('bg-primary-subtle');
-        }
+        // 更新卡片样式
+        updateCardStyle(checkbox);
     });
     updateBatchButton();
 });
 
 expenseCheckboxes.forEach(checkbox => {
     checkbox.addEventListener('change', function() {
-        // 更新行样式
-        const row = this.closest('tr');
-        if (this.checked) {
-            row.classList.add('bg-primary-subtle');
-        } else {
-            row.classList.remove('bg-primary-subtle');
-        }
+        // 更新卡片样式
+        updateCardStyle(this);
         updateBatchButton();
+        updateHeaderCheckbox();
     });
     
-    // 防止点击复选框时触发行的点击事件
+    // 防止点击复选框时触发卡片的点击事件
     checkbox.addEventListener('click', function(e) {
         e.stopPropagation();
     });
 });
 
+function updateCardStyle(checkbox) {
+    const card = checkbox.closest('.expense-card');
+    if (card) {
+        if (checkbox.checked) {
+            card.classList.add('selected');
+        } else {
+            card.classList.remove('selected');
+        }
+    }
+}
+
 function updateBatchButton() {
     const checkedCount = document.querySelectorAll('.expense-checkbox:checked').length;
     batchAssignBtn.disabled = checkedCount === 0;
     batchCategoryBtn.disabled = checkedCount === 0;
+    selectedCountElement.textContent = `已选择: ${checkedCount} 项`;
 }
 
-// 为每一行添加点击事件
-const rows = document.querySelectorAll('tbody tr');
-rows.forEach(row => {
-    // 跳过总计行
-    if (row.querySelector('strong') || !row.querySelector('.expense-checkbox')) {
-        return;
-    }
-    
-    row.addEventListener('click', function() {
+function updateHeaderCheckbox() {
+    const checkedCount = document.querySelectorAll('.expense-checkbox:checked').length;
+    selectAllCheckbox.checked = checkedCount > 0 && checkedCount === expenseCheckboxes.length;
+    selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < expenseCheckboxes.length;
+}
+
+// 为每张卡片添加点击事件
+const expenseCards = document.querySelectorAll('.expense-card');
+expenseCards.forEach(card => {
+    card.addEventListener('click', function(e) {
+        // 如果点击的是按钮、链接或复选框，不处理
+        if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.expense-checkbox')) {
+            return;
+        }
+        
         const checkbox = this.querySelector('.expense-checkbox');
         if (checkbox) {
             // 切换复选框状态
             checkbox.checked = !checkbox.checked;
             
-            // 更新行样式
-            if (checkbox.checked) {
-                this.classList.add('bg-primary-subtle');
-            } else {
-                this.classList.remove('bg-primary-subtle');
-            }
+            // 更新卡片样式
+            updateCardStyle(checkbox);
             
             // 更新批量按钮状态
             updateBatchButton();
+            updateHeaderCheckbox();
         }
     });
 });

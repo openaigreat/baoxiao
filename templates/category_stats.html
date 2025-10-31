@@ -1,10 +1,59 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="card shadow">
+<style>
+    .category-card {
+        transition: all 0.3s ease;
+    }
+    .category-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .category-header {
+        display: flex;
+        justify-content: space-between;
+        align-items-center;
+        margin-bottom: 10px;
+    }
+    .category-name {
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    .amount-badge {
+        background-color: #e9ecef;
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-weight: 500;
+    }
+    .stat-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+    .sort-controls {
+        margin-bottom: 20px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+    }
+    .sort-link {
+        color: #495057;
+        text-decoration: none;
+        margin-right: 20px;
+    }
+    .sort-link:hover {
+        color: #007bff;
+    }
+    .sort-link.active {
+        color: #007bff;
+        font-weight: 500;
+    }
+</style>
+<div class="card shadow mb-4">
     <div class="card-body">
         <h2 class="card-title mb-4">费用分类统计</h2>
         
+        <!-- 总支出概览 -->
         <div class="mb-4">
             <div class="bg-light p-3 rounded">
                 <div class="d-flex justify-content-between align-items-center">
@@ -14,77 +63,87 @@
             </div>
         </div>
         
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th style="cursor: pointer;">
-                            <a href="{{ url_for('stats.category_stats', sort_by='category', sort_order=next_sort_order if current_sort == 'category' else 'asc') }}">
-                                费用类别
-                                {% if current_sort == 'category' %}
-                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
-                                {% else %}
-                                    <i class="bi bi-sort"></i>
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th style="cursor: pointer;">
-                            <a href="{{ url_for('stats.category_stats', sort_by='count', sort_order=next_sort_order if current_sort == 'count' else 'asc') }}">
-                                笔数
-                                {% if current_sort == 'count' %}
-                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
-                                {% else %}
-                                    <i class="bi bi-sort"></i>
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th style="cursor: pointer;">
-                            <a href="{{ url_for('stats.category_stats', sort_by='total_amount', sort_order=next_sort_order if current_sort == 'total_amount' else 'desc') }}">
-                                总金额
-                                {% if current_sort == 'total_amount' %}
-                                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
-                                {% else %}
-                                    <i class="bi bi-sort"></i>
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th>占比</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for category in categories %}
-                    <tr>
-                        <td>{{ category.category }}</td>
-                        <td>{{ category.expense_count }}</td>
-                        <td class="text-right">¥{{ "%.2f" | format(category.total_amount) }}</td>
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <div class="progress flex-grow-1 me-2" style="height: 20px;">
-                                    <div class="progress-bar" role="progressbar"
-                                         style="width: {{ (category.total_amount / total_expenses * 100) if total_expenses > 0 else 0 }}%;"
-                                         aria-valuenow="{{ (category.total_amount / total_expenses * 100) if total_expenses > 0 else 0 }}"
-                                         aria-valuemin="0" aria-valuemax="100">
-                                    </div>
-                                </div>
-                                <span>{{ "%.1f" | format((category.total_amount / total_expenses * 100) if total_expenses > 0 else 0) }}%</span>
+        <!-- 排序控制 -->
+        <div class="sort-controls">
+            <strong>排序方式：</strong>
+            <a href="{{ url_for('stats.category_stats', sort_by='category', sort_order=next_sort_order if current_sort == 'category' else 'asc') }}"
+               class="sort-link {% if current_sort == 'category' %}active{% endif %}">
+                费用类别
+                {% if current_sort == 'category' %}
+                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                {% else %}
+                    <i class="bi bi-sort"></i>
+                {% endif %}
+            </a>
+            <a href="{{ url_for('stats.category_stats', sort_by='count', sort_order=next_sort_order if current_sort == 'count' else 'asc') }}"
+               class="sort-link {% if current_sort == 'count' %}active{% endif %}">
+                笔数
+                {% if current_sort == 'count' %}
+                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                {% else %}
+                    <i class="bi bi-sort"></i>
+                {% endif %}
+            </a>
+            <a href="{{ url_for('stats.category_stats', sort_by='total_amount', sort_order=next_sort_order if current_sort == 'total_amount' else 'desc') }}"
+               class="sort-link {% if current_sort == 'total_amount' %}active{% endif %}">
+                总金额
+                {% if current_sort == 'total_amount' %}
+                    <i class="bi bi-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                {% else %}
+                    <i class="bi bi-sort"></i>
+                {% endif %}
+            </a>
+        </div>
+        
+        {% if categories %}
+        <!-- 费用分类卡片网格 -->
+        <div class="row">
+            {% for category in categories %}
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="category-card card h-100">
+                    <div class="card-body">
+                        <div class="category-header">
+                            <div class="category-name">{{ category.category }}</div>
+                            <div class="amount-badge">
+                                ¥{{ "%.2f" | format(category.total_amount) }}
                             </div>
-                        </td>
-                        <td>
+                        </div>
+                        
+                        <!-- 笔数和占比信息 - 标题和数值在同一行 -->
+                        <div class="d-flex justify-content-between mt-2 mb-1">
+                            <span class="text-muted">笔数：</span>
+                            <span class="font-medium">{{ category.expense_count }}</span>
+                        </div>
+                        
+                        <!-- 占比信息和进度条 -->
+                        <div class="d-flex justify-content-between mt-2 mb-1">
+                            <span class="text-muted">占总支出比例：</span>
+                            <span class="font-medium">{{ "%.1f" | format((category.total_amount / total_expenses * 100) if total_expenses > 0 else 0) }}%</span>
+                        </div>
+                        <div class="progress" style="height: 8px; margin-bottom: 3px;">
+                            <div class="progress-bar" role="progressbar"
+                                 style="width: {{ (category.total_amount / total_expenses * 100) if total_expenses > 0 else 0 }}%;"
+                                 aria-valuenow="{{ (category.total_amount / total_expenses * 100) if total_expenses > 0 else 0 }}"
+                                 aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 text-right">
                             <a href="{{ url_for('stats.category_expenses', category_name=category.category) }}"
                                class="btn btn-sm btn-outline-primary">
                                 查看明细
                             </a>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="5" class="text-center text-muted">暂无费用记录</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
         </div>
+        {% else %}
+        <div class="card p-5 text-center">
+            <p class="text-muted">暂无费用记录</p>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

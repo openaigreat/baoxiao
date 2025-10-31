@@ -145,30 +145,52 @@
              {% endif %}
              {% endif %}
               
-             <!-- 回款记录列表 -->
+             <!-- 回款记录卡片网格 -->
              {% if payments %}
-             <table class="table table-hover">
-                 <thead>
-                     <tr>
-                         <th>回款日期</th>
-                         <th>回款金额</th>
-                         <th>备注</th>
-                         <th>添加时间</th>
-                     </tr>
-                 </thead>
-                 <tbody>
-                     {% for payment in payments %}
-                     <tr>
-                         <td>{{ payment.payment_date }}</td>
-                         <td>¥{{ "%.2f"|format(payment.amount) }}</td>
-                         <td>{{ payment.note or '-' }}</td>
-                         <td>{{ payment.created_at }}</td>
-                     </tr>
-                     {% endfor %}
-                 </tbody>
-             </table>
+             <style>
+                 .payment-card {
+                     transition: transform 0.2s ease, box-shadow 0.2s ease;
+                 }
+                 .payment-card:hover {
+                     transform: translateY(-2px);
+                     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                 }
+                 .payment-card .card-body {
+                     font-size: 12px;
+                 }
+             </style>
+             <div class="row">
+                 {% for payment in payments %}
+                 <div class="col-md-4 mb-3">
+                     <div class="payment-card card">
+                         <div class="card-body">
+                             <div class="d-flex justify-content-between mb-2">
+                                 <span class="text-muted">回款金额：</span>
+                                 <span class="font-medium text-success">¥{{ "%.2f"|format(payment.amount) }}</span>
+                             </div>
+                             <div class="d-flex justify-content-between mb-2">
+                                 <span class="text-muted">回款日期：</span>
+                                 <span>{{ payment.payment_date }}</span>
+                             </div>
+                             {% if payment.note %}
+                             <div class="d-flex justify-content-between mb-2">
+                                 <span class="text-muted">备注：</span>
+                                 <span>{{ payment.note }}</span>
+                             </div>
+                             {% endif %}
+                             <div class="d-flex justify-content-between">
+                                 <span class="text-muted">添加时间：</span>
+                                 <span>{{ payment.created_at }}</span>
+                             </div>
+                         </div>
+                     </div>
+                 </div>
+                 {% endfor %}
+             </div>
              {% else %}
-             <p>暂无回款记录</p>
+             <div class="card text-center p-4">
+                 <p class="text-muted">暂无回款记录</p>
+             </div>
              {% endif %}
          </div>
         
@@ -176,51 +198,89 @@
         <div class="mb-6">
             <h3 class="mb-3">已关联支出记录 ({{ attached_expenses|length }})</h3>
             
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>日期</th>
-                            <th>项目</th>
-                            <th>类别</th>
-                            <th>用途</th>
-                            <th>支出金额</th>
-                            <th>报销金额</th>
-                            <th>备注</th>
+            <style>
+                .attached-expense-card {
+                    transition: transform 0.2s ease, box-shadow 0.2s ease;
+                }
+                .attached-expense-card:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                }
+                .attached-expense-card .card-body {
+                    font-size: 12px;
+                }
+                .attached-expense-card .card-title {
+                    font-size: 14px;
+                }
+            </style>
+            
+            <!-- 支出记录卡片网格 -->
+            <div class="row">
+                {% for expense in attached_expenses %}
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="attached-expense-card card h-100">
+                        <div class="card-body">
+                            <!-- 头部：用途 -->
+                            <h5 class="card-title mb-3">{{ expense.purpose }}</h5>
+                            
+                            <!-- 金额信息 -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">支出金额：</span>
+                                    <span>¥{{ "%.2f"|format(expense.amount) }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">报销金额：</span>
+                                    <span class="font-medium">¥{{ "%.2f"|format(expense.reimbursement_amount) }}</span>
+                                </div>
+                            </div>
+                            
+                            <!-- 详细信息 -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">日期：</span>
+                                    <span>{{ expense.date }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">项目：</span>
+                                    <span>{{ expense.project_name or '未分配' }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">类别：</span>
+                                    <span>{{ expense.category or '未分类' }}</span>
+                                </div>
+                                {% if expense.note %}
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">备注：</span>
+                                    <span>{{ expense.note }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- 操作按钮 -->
                             {% if reimbursement.status == '草稿' or reimbursement.status == '已拒绝' %}
-                            <th>操作</th>
-                            {% endif %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for expense in attached_expenses %}
-                        <tr>
-                            <td>{{ expense.date }}</td>
-                            <td>{{ expense.project_name or '未分配' }}</td>
-                            <td>{{ expense.category or '未分类' }}</td>
-                            <td>{{ expense.purpose }}</td>
-                            <td>¥{{ "%.2f"|format(expense.amount) }}</td>
-                            <td>¥{{ "%.2f"|format(expense.reimbursement_amount) }}</td>
-                            <td>{{ expense.note or '-' }}</td>
-                            {% if reimbursement.status == '草稿' or reimbursement.status == '已拒绝' %}
-                            <td>
+                            <div class="text-end">
                                 <button class="btn btn-sm btn-danger remove-expense" 
                                         data-expense-id="{{ expense.id }}" 
                                         data-reimbursement-id="{{ reimbursement.id }}">
                                     移除
                                 </button>
-                            </td>
+                            </div>
                             {% endif %}
-                        </tr>
-                        {% endfor %}
-                        <tr class="table-info">
-                            <td colspan="5" class="text-end"><strong>总计:</strong></td>
-                            <td><strong>¥{{ "%.2f"|format(attached_expenses|sum(attribute='reimbursement_amount', start=0)) }}</strong></td>
-                            <td colspan="2"></td>
-                        </tr>
-                    </tbody>
-                </table>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
+            
+            <!-- 总计信息 -->
+            {% if attached_expenses %}
+            <div class="mt-4 p-3 bg-info-subtle rounded">
+                <div class="d-flex justify-content-end">
+                    <span class="text-lg font-bold">总计：¥{{ "%.2f"|format(attached_expenses|sum(attribute='reimbursement_amount', start=0)) }}</span>
+                </div>
+            </div>
+            {% endif %}
         </div>
         
         <!-- 添加支出记录 -->

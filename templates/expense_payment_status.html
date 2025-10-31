@@ -49,59 +49,88 @@
             </div>
         </div>
         
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>支出日期</th>
-                        <th>项目</th>
-                        <th>类别</th>
-                        <th>用途</th>
-                        <th>支出金额</th>
-                        <th>报销单ID</th>
-                        <th>报销状态</th>
-                        <th>回款状态</th>
-                        <th>分摊回款金额</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for expense in expenses %}
-                    <tr>
-                        <td>{{ expense.expense_date }}</td>
-                        <td>{{ expense.project_name or '无项目' }}</td>
-                        <td>{{ expense.category or '未分类' }}</td>
-                        <td>{{ expense.purpose }}</td>
-                        <td>¥{{ "%.2f"|format(expense.expense_amount or 0) }}</td>
-                        <td>{{ expense.reimbursement_id or '-' }}</td>
-                        <td>
+<style>
+    .expense-status-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .expense-status-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .expense-amount {
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    .expense-status-card .card-body {
+        font-size: 12px;
+    }
+    .expense-status-card .card-title {
+        font-size: 14px;
+    }
+</style>
+
+        <!-- 支出记录卡片网格 -->
+        <div class="row">
+            {% for expense in expenses %}
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="expense-status-card card h-100">
+                    <div class="card-body">
+                        <!-- 头部：用途和状态 -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between items-start">
+                                <h5 class="card-title mb-1">{{ expense.purpose }}</h5>
+                                {% if expense.payment_status == '未报销' %}
+                                <span class="badge bg-secondary">未报销</span>
+                                {% elif expense.payment_status == '已回款' %}
+                                <span class="badge bg-success">已回款</span>
+                                {% elif expense.payment_status == '已报销未回款' %}
+                                <span class="badge bg-warning">已报销未回款</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- 金额 -->
+                        <div class="mb-3">
+                            <div class="expense-amount">¥{{ "%.2f"|format(expense.expense_amount or 0) }}</div>
+                        </div>
+                        
+                        <!-- 详细信息 -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">支出日期：</span>
+                                <span>{{ expense.expense_date }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">项目：</span>
+                                <span>{{ expense.project_name or '无项目' }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">类别：</span>
+                                <span>{{ expense.category or '未分类' }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">报销单ID：</span>
+                                <span>{{ expense.reimbursement_id or '-' }}</span>
+                            </div>
                             {% if expense.reimbursement_status %}
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">报销状态：</span>
                                 <span class="badge {% if expense.reimbursement_status == '已回款' %}bg-success{% elif expense.reimbursement_status in ['已提交', '审核中', '已批准'] %}bg-primary{% else %}bg-secondary{% endif %}">
                                     {{ expense.reimbursement_status }}
                                 </span>
-                            {% else %}
-                                -
+                            </div>
                             {% endif %}
-                        </td>
-                        <td>
-                            {% if expense.payment_status == '未报销' %}
-                                <span class="badge bg-secondary">未报销</span>
-                            {% elif expense.payment_status == '已回款' %}
-                                <span class="badge bg-success">已回款</span>
-                            {% elif expense.payment_status == '已报销未回款' %}
-                                <span class="badge bg-warning">已报销未回款</span>
-                            {% endif %}
-                        </td>
-                        <td>
                             {% if expense.allocated_paid_amount > 0 %}
-                                ¥{{ "%.2f"|format(expense.allocated_paid_amount or 0) }}
-                            {% else %}
-                                -
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">分摊回款：</span>
+                                <span class="text-success font-medium">¥{{ "%.2f"|format(expense.allocated_paid_amount or 0) }}</span>
+                            </div>
                             {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
         </div>
         
         <div class="mt-3">

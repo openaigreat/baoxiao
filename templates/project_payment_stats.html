@@ -1,13 +1,34 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+    .payment-stat-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .payment-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .stat-link {
+        text-decoration: none;
+        color: inherit;
+    }
+    .stat-link:hover {
+        text-decoration: none;
+    }
+    .total-amount {
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+</style>
+
 <div class="card shadow">
     <div class="card-body">
         <h2 class="card-title mb-4">项目回款统计</h2>
         
         {% if stats %}
         <!-- 分页大小选择器 -->
-        <div class="row mb-3">
+        <div class="row mb-4">
             <div class="col-md-6">
                 <form id="per-page-form" class="form-inline">
                     <label for="per_page" class="mr-2">每页显示:</label>
@@ -25,54 +46,64 @@
             </div>
         </div>
         
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>项目名称</th>
-                        <th>未报销金额 (笔数)</th>
-                        <th>已报销未回款金额 (笔数)</th>
-                        <th>已回款金额 (笔数)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for stat in stats %}
-                    <tr>
-                        <td>{{ loop.index + (current_page - 1) * per_page }}</td>
-                        <td>
+        <!-- 卡片网格布局 -->
+        <div class="row">
+            {% for stat in stats %}
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="payment-stat-card card h-100">
+                    <div class="card-body">
+                        <!-- 项目标题 -->
+                        <div class="d-flex justify-content-between items-center mb-3">
+                            <span class="badge bg-secondary">#{{ loop.index + (current_page - 1) * per_page }}</span>
                             {% if stat.project_id >= 0 %}
-                                <a href="{{ url_for('stats.project_all_expenses', project_id=stat.project_id) }}">
+                                <a href="{{ url_for('stats.project_all_expenses', project_id=stat.project_id) }}" class="h5 mb-0 stat-link">
                                     {{ stat.project_name }}
                                 </a>
                             {% else %}
-                                <a href="{{ url_for('stats.project_all_expenses', project_id=0) }}">
+                                <a href="{{ url_for('stats.project_all_expenses', project_id=0) }}" class="h5 mb-0 stat-link">
                                     {{ stat.project_name }}
                                 </a>
                             {% endif %}
-                        </td>
-                        <td>
-                            <a href="{{ url_for('stats.expense_payment_details', project_id=stat.project_id, status='unreimbursed') }}">
-                                ¥{{ "%.2f"|format(stat.unreimbursed_amount or 0) }}
-                                <small>({{ stat.unreimbursed_count or 0 }}笔)</small>
+                        </div>
+                        
+                        <!-- 未报销金额 -->
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">未报销金额：</span>
+                            <a href="{{ url_for('stats.expense_payment_details', project_id=stat.project_id, status='unreimbursed') }}" class="stat-link">
+                                <span class="font-medium">¥{{ "%.2f"|format(stat.unreimbursed_amount or 0) }}</span>
+                                <small class="text-muted">({{ stat.unreimbursed_count or 0 }}笔)</small>
                             </a>
-                        </td>
-                        <td>
-                            <a href="{{ url_for('stats.expense_payment_details', project_id=stat.project_id, status='reimbursed_unpaid') }}">
-                                ¥{{ "%.2f"|format(stat.reimbursed_unpaid_amount or 0) }}
-                                <small>({{ stat.reimbursed_unpaid_count or 0 }}笔)</small>
+                        </div>
+                        
+                        <!-- 已报销未回款金额 -->
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">已报销未回款：</span>
+                            <a href="{{ url_for('stats.expense_payment_details', project_id=stat.project_id, status='reimbursed_unpaid') }}" class="stat-link">
+                                <span class="font-medium">¥{{ "%.2f"|format(stat.reimbursed_unpaid_amount or 0) }}</span>
+                                <small class="text-muted">({{ stat.reimbursed_unpaid_count or 0 }}笔)</small>
                             </a>
-                        </td>
-                        <td>
-                            <a href="{{ url_for('stats.expense_payment_details', project_id=stat.project_id, status='reimbursed_paid') }}">
-                                ¥{{ "%.2f"|format(stat.reimbursed_paid_amount or 0) }}
-                                <small>({{ stat.reimbursed_paid_count or 0 }}笔)</small>
+                        </div>
+                        
+                        <!-- 已回款金额 -->
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">已回款金额：</span>
+                            <a href="{{ url_for('stats.expense_payment_details', project_id=stat.project_id, status='reimbursed_paid') }}" class="stat-link">
+                                <span class="font-medium text-success">¥{{ "%.2f"|format(stat.reimbursed_paid_amount or 0) }}</span>
+                                <small class="text-muted">({{ stat.reimbursed_paid_count or 0 }}笔)</small>
                             </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                        </div>
+                        
+                        <!-- 总计 -->
+                        <div class="mt-3 pt-3 border-top">
+                            <div class="d-flex justify-content-between">
+                                <span class="font-medium">总支出：</span>
+                                <span class="total-amount">¥{{ "%.2f"|format((stat.unreimbursed_amount or 0) + (stat.reimbursed_unpaid_amount or 0) + (stat.reimbursed_paid_amount or 0)) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
         </div>
         
         <!-- 分页控件 -->
@@ -118,8 +149,8 @@
         {% endif %}
         
         {% else %}
-        <div class="alert alert-info">
-            暂无项目数据
+        <div class="card p-5 text-center">
+            <p class="text-muted">暂无项目数据</p>
         </div>
         {% endif %}
         
