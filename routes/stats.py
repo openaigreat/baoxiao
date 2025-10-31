@@ -475,8 +475,25 @@ def expense_payment_status():
         session['user_id'] = 1
         session['username'] = '默认用户'
     
+    # 获取筛选参数
+    project_name = request.args.get('project_name', '').strip()
+    category = request.args.get('category', '').strip()
+    payment_status = request.args.get('payment_status', '').strip()
+    sort_by = request.args.get('sort_by', 'date_desc').strip()
+    
     try:
-        expenses = stats_service.get_expense_payment_status()
+        # 构建筛选条件
+        filters = {}
+        if project_name:
+            filters['project_name'] = project_name
+        if category:
+            filters['category'] = category
+        if payment_status:
+            filters['payment_status'] = payment_status
+        if sort_by:
+            filters['sort_by'] = sort_by
+            
+        expenses = stats_service.get_expense_payment_status(filters)
         return render_template('expense_payment_status.html', expenses=expenses)
     except Exception as e:
         logging.error(f"Error in expense_payment_status route: {e}")

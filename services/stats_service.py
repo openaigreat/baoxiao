@@ -272,15 +272,57 @@ class StatsService:
         finally:
             conn.close()
     
-    def get_expense_payment_status(self):
+    def get_expense_payment_status(self, filters=None):
         """
         获取支出记录的回款状态
+        :param filters: 筛选条件字典，可包含project_name, category, payment_status, sort_by等
         :return: 支出记录及其回款状态列表
         """
         conn = get_db()
         try:
+            # 构建查询条件
+            where_conditions = []
+            params = []
+            
+            if filters:
+                # 项目名称筛选
+                if filters.get('project_name'):
+                    where_conditions.append("p.name LIKE ?")
+                    params.append(f"%{filters['project_name']}%")
+                
+                # 费用类别筛选
+                if filters.get('category'):
+                    where_conditions.append("e.category LIKE ?")
+                    params.append(f"%{filters['category']}%")
+                
+                # 回款状态筛选
+                if filters.get('payment_status'):
+                    payment_status = filters['payment_status']
+                    if payment_status == '未报销':
+                        where_conditions.append("re.expense_id IS NULL")
+                    elif payment_status == '已报销未回款':
+                        where_conditions.append("re.expense_id IS NOT NULL AND r.status IN ('已提交', '审核中', '已批准')")
+                    elif payment_status == '已回款':
+                        where_conditions.append("r.status = '已回款'")
+            
+            # 构建WHERE子句
+            where_clause = ""
+            if where_conditions:
+                where_clause = "WHERE " + " AND ".join(where_conditions)
+            
+            # 构建ORDER BY子句
+            order_clause = "e.date DESC, e.id DESC"  # 默认排序
+            if filters and filters.get('sort_by'):
+                sort_by = filters['sort_by']
+                if sort_by == 'date_asc':
+                    order_clause = "e.date ASC, e.id ASC"
+                elif sort_by == 'amount_desc':
+                    order_clause = "e.amount DESC, e.date DESC"
+                elif sort_by == 'amount_asc':
+                    order_clause = "e.amount ASC, e.date DESC"
+            
             # 获取所有支出记录及其回款状态
-            expenses = conn.execute('''
+            query = f'''
                 SELECT 
                     e.id as expense_id,
                     e.date as expense_date,
@@ -308,8 +350,11 @@ class StatsService:
                 LEFT JOIN projects p ON e.project_id = p.id
                 LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
                 LEFT JOIN reimbursements r ON re.reimbursement_id = r.id
-                ORDER BY e.date DESC, e.id DESC
-            ''').fetchall()
+                {where_clause}
+                ORDER BY {order_clause}
+            '''
+            
+            expenses = conn.execute(query, params).fetchall()
             
             return expenses
         except Exception as e:

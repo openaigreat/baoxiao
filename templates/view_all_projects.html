@@ -5,6 +5,38 @@
     <div class="card-body">
         <h2 class="card-title mb-4">所有项目</h2>
         
+        <!-- 筛选表单 -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <label for="search_name" class="form-label">项目名称</label>
+                <input type="text" id="search_name" name="search_name" class="form-control" placeholder="输入项目名称">
+            </div>
+            <div class="col-md-3">
+                <label for="status_filter" class="form-label">项目状态</label>
+                <select id="status_filter" name="status_filter" class="form-control">
+                    <option value="">全部状态</option>
+                    <option value="进行中">进行中</option>
+                    <option value="已完成">已完成</option>
+                    <option value="已暂停">已暂停</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="sort_by" class="form-label">排序方式</label>
+                <select id="sort_by" name="sort_by" class="form-control">
+                    <option value="id">按ID排序</option>
+                    <option value="name">按名称排序</option>
+                    <option value="total_expense">按支出总额排序</option>
+                    <option value="unpaid_amount">按未回款金额排序</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <div class="btn-group" role="group">
+                    <button type="button" id="search-btn" class="btn btn-primary">筛选</button>
+                    <button type="button" id="reset-btn" class="btn btn-secondary">重置</button>
+                </div>
+            </div>
+        </div>
+        
         {% if projects %}
         <!-- 分页大小选择器 -->
         <div class="row mb-3">
@@ -122,5 +154,76 @@ function changePerPage() {
     url.searchParams.set('page', 1); // 重置到第一页
     window.location.href = url;
 }
+
+// 处理筛选功能
+document.getElementById('search-btn').addEventListener('click', function() {
+    applyFilters();
+});
+
+document.getElementById('reset-btn').addEventListener('click', function() {
+    // 重置筛选条件
+    document.getElementById('search_name').value = '';
+    document.getElementById('status_filter').value = '';
+    document.getElementById('sort_by').value = 'id';
+    applyFilters();
+});
+
+// 回车键触发筛选
+document.getElementById('search_name').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        applyFilters();
+    }
+});
+
+function applyFilters() {
+    const searchName = document.getElementById('search_name').value.trim();
+    const statusFilter = document.getElementById('status_filter').value;
+    const sortBy = document.getElementById('sort_by').value;
+    
+    const url = new URL(window.location);
+    
+    // 更新URL参数
+    if (searchName) {
+        url.searchParams.set('search_name', searchName);
+    } else {
+        url.searchParams.delete('search_name');
+    }
+    
+    if (statusFilter) {
+        url.searchParams.set('status_filter', statusFilter);
+    } else {
+        url.searchParams.delete('status_filter');
+    }
+    
+    if (sortBy && sortBy !== 'id') {
+        url.searchParams.set('sort_by', sortBy);
+    } else {
+        url.searchParams.delete('sort_by');
+    }
+    
+    // 重置到第一页
+    url.searchParams.set('page', 1);
+    
+    window.location.href = url;
+}
+
+// 页面加载时，从URL参数中恢复筛选条件
+window.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    const searchName = urlParams.get('search_name');
+    const statusFilter = urlParams.get('status_filter');
+    const sortBy = urlParams.get('sort_by');
+    
+    if (searchName) {
+        document.getElementById('search_name').value = searchName;
+    }
+    if (statusFilter) {
+        document.getElementById('status_filter').value = statusFilter;
+    }
+    if (sortBy) {
+        document.getElementById('sort_by').value = sortBy;
+    }
+});
 </script>
 {% endblock %}

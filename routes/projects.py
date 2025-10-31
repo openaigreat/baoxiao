@@ -20,54 +20,96 @@ def manage_projects():
 
 @bp.route('/view_all_projects')
 def view_all_projects():
-    """查看所有项目（包括进行中和已完成）"""
     # 无需登录验证
-    # 为了兼容性，设置一个默认用户信息
     if 'user_id' not in session:
         session['user_id'] = 1
         session['username'] = '默认用户'
     
     # 获取分页参数
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 10, type=int)
+    per_page = request.args.get('per_page', 30, type=int)
     
-    # 验证分页大小
+    # 获取筛选参数
+    search_name = request.args.get('search_name', '').strip()
+    status_filter = request.args.get('status_filter', '').strip()
+    sort_by = request.args.get('sort_by', 'id').strip()
+    
+    # 验证分页参数
     if per_page not in [10, 30, 50, 100]:
-        per_page = 10
+        per_page = 30
     
     # 计算偏移量
     offset = (page - 1) * per_page
     
     conn = get_db()
     try:
-        # 获取项目总数
-        total_result = conn.execute('SELECT COUNT(*) as count FROM projects').fetchone()
+        # 构建查询条件
+        where_conditions = []
+        params = []
+        
+        if search_name:
+            where_conditions.append("p.name LIKE ?")
+            params.append(f"%{search_name}%")
+            
+        if status_filter:
+            where_conditions.append("p.status = ?")
+            params.append(status_filter)
+            
+        # 构建WHERE子句
+        where_clause = ""
+        if where_conditions:
+            where_clause = "WHERE " + " AND ".join(where_conditions)
+        
+        # 构建ORDER BY子句
+        order_mapping = {
+            'name': 'p.name',
+            'total_expense': 'total_expense DESC',
+            'unpaid_amount': 'unpaid_amount DESC'
+        }
+        order_clause = 'p.id'  # 默认按ID排序
+        if sort_by in order_mapping:
+            order_clause = order_mapping[sort_by]
+        
+        # 获取符合条件的项目总数
+        count_query = f'''
+            SELECT COUNT(*) as count
+            FROM projects p
+            {where_clause}
+        '''
+        total_result = conn.execute(count_query, params).fetchone()
         total_projects = total_result['count']
         
-        # 获取分页项目数据，包括项目预算金额和已提交报销金额
-        projects = conn.execute('''
+        # 添加分页参数
+        params.extend([per_page, offset])
+        
+        # 获取项目数据
+        projects_query = f'''
             SELECT 
                 p.id,
                 p.name,
                 p.status,
                 p.note,
-                COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN e.amount ELSE 0 END), 0) AS total_expense,
-                COALESCE(SUM(CASE WHEN re.expense_id IS NOT NULL THEN e.amount ELSE 0 END), 0) AS submitted_amount,
-                COALESCE(SUM(CASE WHEN re.expense_id IS NOT NULL AND r.status = '已回款' THEN e.amount ELSE 0 END), 0) AS paid_amount,
-                COALESCE(SUM(CASE WHEN re.expense_id IS NOT NULL AND r.status != '已回款' THEN e.amount ELSE 0 END), 0) AS unpaid_amount
+                COALESCE(SUM(e.amount), 0) as total_expense,
+                COALESCE(SUM(CASE WHEN r.status IN ('已提交', '审核中', '已批准', '已回款') THEN e.amount ELSE 0 END), 0) as submitted_amount,
+                COALESCE(SUM(CASE WHEN r.status = '已回款' THEN e.amount ELSE 0 END), 0) as paid_amount,
+                COALESCE(SUM(CASE WHEN r.status IN ('已提交', '审核中', '已批准') THEN e.amount ELSE 0 END), 0) as unpaid_amount
             FROM projects p
             LEFT JOIN expenses e ON p.id = e.project_id
             LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
             LEFT JOIN reimbursements r ON re.reimbursement_id = r.id
+            {where_clause}
             GROUP BY p.id, p.name, p.status, p.note
-            ORDER BY p.id
+            ORDER BY {order_clause}
             LIMIT ? OFFSET ?
-        ''', (per_page, offset)).fetchall()
+        '''
+        
+        projects = conn.execute(projects_query, params).fetchall()
         
         # 计算总页数
         total_pages = (total_projects + per_page - 1) // per_page
         
     except Exception as e:
+        logging.error(f"Error in view_all_projects: {e}")
         flash(f'获取项目数据失败: {str(e)}')
         projects = []
         total_projects = 0
@@ -80,7 +122,10 @@ def view_all_projects():
                           page=page,
                           per_page=per_page,
                           total_projects=total_projects,
-                          total_pages=total_pages)
+                          total_pages=total_pages,
+                          search_name=search_name,
+                          status_filter=status_filter,
+                          sort_by=sort_by)
 
 @bp.route('/add_project', methods=['GET', 'POST'])
 def add_project():

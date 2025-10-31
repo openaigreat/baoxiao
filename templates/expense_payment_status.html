@@ -5,6 +5,50 @@
     <div class="card-body">
         <h2 class="card-title mb-4">支出回款状态详情</h2>
         
+        <!-- 筛选表单 -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <label for="project_name" class="form-label">项目名称</label>
+                <input type="text" id="project_name" name="project_name" class="form-control" placeholder="输入项目名称">
+            </div>
+            <div class="col-md-2">
+                <label for="category" class="form-label">费用类别</label>
+                <select id="category" name="category" class="form-control">
+                    <option value="">全部类别</option>
+                    <option value="餐费">餐费</option>
+                    <option value="交通">交通</option>
+                    <option value="材料">材料</option>
+                    <option value="住宿">住宿</option>
+                    <option value="人工">人工</option>
+                    <option value="其他">其他</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="payment_status" class="form-label">回款状态</label>
+                <select id="payment_status" name="payment_status" class="form-control">
+                    <option value="">全部状态</option>
+                    <option value="未报销">未报销</option>
+                    <option value="已报销未回款">已报销未回款</option>
+                    <option value="已回款">已回款</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="sort_by" class="form-label">排序方式</label>
+                <select id="sort_by" name="sort_by" class="form-control">
+                    <option value="date_desc">按日期倒序</option>
+                    <option value="date_asc">按日期正序</option>
+                    <option value="amount_desc">按金额倒序</option>
+                    <option value="amount_asc">按金额正序</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <div class="btn-group" role="group">
+                    <button type="button" id="search-btn" class="btn btn-primary">筛选</button>
+                    <button type="button" id="reset-btn" class="btn btn-secondary">重置</button>
+                </div>
+            </div>
+        </div>
+        
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
@@ -65,4 +109,86 @@
         </div>
     </div>
 </div>
+
+<script>
+// 处理筛选功能
+document.getElementById('search-btn').addEventListener('click', function() {
+    applyFilters();
+});
+
+document.getElementById('reset-btn').addEventListener('click', function() {
+    // 重置筛选条件
+    document.getElementById('project_name').value = '';
+    document.getElementById('category').value = '';
+    document.getElementById('payment_status').value = '';
+    document.getElementById('sort_by').value = 'date_desc';
+    applyFilters();
+});
+
+// 回车键触发筛选
+document.getElementById('project_name').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        applyFilters();
+    }
+});
+
+function applyFilters() {
+    const projectName = document.getElementById('project_name').value.trim();
+    const category = document.getElementById('category').value;
+    const paymentStatus = document.getElementById('payment_status').value;
+    const sortBy = document.getElementById('sort_by').value;
+    
+    const url = new URL(window.location);
+    
+    // 更新URL参数
+    if (projectName) {
+        url.searchParams.set('project_name', projectName);
+    } else {
+        url.searchParams.delete('project_name');
+    }
+    
+    if (category) {
+        url.searchParams.set('category', category);
+    } else {
+        url.searchParams.delete('category');
+    }
+    
+    if (paymentStatus) {
+        url.searchParams.set('payment_status', paymentStatus);
+    } else {
+        url.searchParams.delete('payment_status');
+    }
+    
+    if (sortBy && sortBy !== 'date_desc') {
+        url.searchParams.set('sort_by', sortBy);
+    } else {
+        url.searchParams.delete('sort_by');
+    }
+    
+    window.location.href = url;
+}
+
+// 页面加载时，从URL参数中恢复筛选条件
+window.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    const projectName = urlParams.get('project_name');
+    const category = urlParams.get('category');
+    const paymentStatus = urlParams.get('payment_status');
+    const sortBy = urlParams.get('sort_by');
+    
+    if (projectName) {
+        document.getElementById('project_name').value = projectName;
+    }
+    if (category) {
+        document.getElementById('category').value = category;
+    }
+    if (paymentStatus) {
+        document.getElementById('payment_status').value = paymentStatus;
+    }
+    if (sortBy) {
+        document.getElementById('sort_by').value = sortBy;
+    }
+});
+</script>
 {% endblock %}
