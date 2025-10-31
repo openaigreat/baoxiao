@@ -69,10 +69,10 @@
     }
 </style>
 
-        <!-- 支出记录卡片网格 -->
-        <div class="row">
+        <!-- 移动设备：卡片式布局 -->
+        <div class="row d-md-none">
             {% for expense in expenses %}
-            <div class="col-lg-4 col-md-6 mb-4">
+            <div class="col-12 mb-4">
                 <div class="expense-status-card card h-100">
                     <div class="card-body">
                         <!-- 头部：用途和状态 -->
@@ -131,6 +131,52 @@
                 </div>
             </div>
             {% endfor %}
+        </div>
+        
+        <!-- PC设备：表格布局 -->
+        <div class="table-responsive d-none d-md-block">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>支出日期</th>
+                        <th>项目</th>
+                        <th>类别</th>
+                        <th>用途</th>
+                        <th>支出金额</th>
+                        <th>报销单ID</th>
+                        <th>报销状态</th>
+                        <th>分摊回款</th>
+                        <th>回款状态</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in expenses %}
+                    <tr>
+                        <td>{{ expense.expense_date }}</td>
+                        <td>{{ expense.project_name or '无项目' }}</td>
+                        <td>{{ expense.category or '未分类' }}</td>
+                        <td>{{ expense.purpose }}</td>
+                        <td>¥{{ "%.2f"|format(expense.expense_amount or 0) }}</td>
+                        <td>{{ expense.reimbursement_id or '-' }}</td>
+                        <td>
+                            {% if expense.reimbursement_status %}
+                            <span class="badge {% if expense.reimbursement_status == '已回款' %}bg-success{% elif expense.reimbursement_status in ['已提交', '审核中', '已批准'] %}bg-primary{% else %}bg-secondary{% endif %}">
+                                {{ expense.reimbursement_status }}
+                            </span>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>¥{{ "%.2f"|format(expense.allocated_paid_amount or 0) }}</td>
+                        <td>
+                            <span class="badge {% if expense.payment_status == '已回款' %}bg-success{% elif expense.payment_status == '已报销未回款' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                {{ expense.payment_status }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
         
         <div class="mt-3">

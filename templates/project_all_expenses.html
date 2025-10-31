@@ -33,6 +33,12 @@
     .expense-card .card-title {
         font-size: 14px;
     }
+    .expense-table-row {
+        font-size: 14px;
+    }
+    .expense-table-row td {
+        vertical-align: middle;
+    }
 </style>
 <div class="card shadow mb-4">
     <div class="card-body">
@@ -58,10 +64,12 @@
             </div>
         </div>
         
-        <!-- 支出记录卡片网格 -->
-        <div class="row">
+        <!-- 支出记录：响应式布局 -->
+        
+        <!-- 移动设备：卡片式布局 -->
+        <div class="row d-md-none">
             {% for expense in expenses %}
-            <div class="col-lg-4 col-md-6 mb-4">
+            <div class="col-12 mb-4">
                 <div class="expense-card card h-100">
                     <div class="card-body">
                         <div class="d-flex justify-content-between items-start mb-3">
@@ -99,6 +107,40 @@
                 </div>
             </div>
             {% endfor %}
+        </div>
+        
+        <!-- PC设备：表格布局 -->
+        <div class="table-responsive d-none d-md-block">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>用途</th>
+                        <th>金额</th>
+                        <th>支出日期</th>
+                        <th>类别</th>
+                        <th>报销单ID</th>
+                        <th>状态</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in expenses %}
+                    <tr class="expense-table-row">
+                        <td>{{ loop.index + (current_page - 1) * per_page }}</td>
+                        <td>{{ expense.purpose }}</td>
+                        <td class="font-weight-bold">¥{{ "%.2f"|format(expense.expense_amount) }}</td>
+                        <td>{{ expense.expense_date }}</td>
+                        <td>{{ expense.category or '未分类' }}</td>
+                        <td>{{ expense.reimbursement_id or '-' }}</td>
+                        <td>
+                            <span class="badge {% if expense.reimbursement_status == '已回款' %}bg-success{% elif expense.reimbursement_status in ['已提交', '审核中', '已批准'] %}bg-primary{% else %}bg-secondary{% endif %}">
+                                {{ expense.reimbursement_status or '未报销' }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
         
         <!-- 分页控件 -->

@@ -5,6 +5,22 @@
     .smaller-text {
         font-size: 0.6em; /* 调整为你需要的大小 */
     }
+    .expense-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .expense-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .expense-card .card-body {
+        font-size: 12px;
+    }
+    .expense-table-row {
+        font-size: 14px;
+    }
+    .expense-table-row td {
+        vertical-align: middle;
+    }
 </style>
 <div class="card shadow mb-4">
     <div class="card-body">
@@ -69,8 +85,11 @@
             </div>
         </div>
         
-        <!-- 支出卡片列表 -->
-        <div class="expense-cards">
+        <!-- 支出列表：响应式布局 -->
+        {% if expenses %}
+        
+        <!-- 移动设备：卡片式布局 -->
+        <div class="expense-cards d-md-none">
             {% for expense in expenses %}
             <div class="card mb-3 expense-card" data-id="{{ expense.id }}">
                 <div class="card-body">
@@ -118,6 +137,54 @@
             </div>
             {% endfor %}
         </div>
+        
+        <!-- PC设备：表格布局 -->
+        <div class="table-responsive d-none d-md-block">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>
+                            <div class="form-check">
+                                <input type="checkbox" id="select-all-table" class="form-check-input">
+                            </div>
+                        </th>
+                        <th>金额</th>
+                        <th>日期</th>
+                        <th>类别</th>
+                        <th>用途</th>
+                        <th>备注</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in expenses %}
+                    <tr class="expense-table-row" data-id="{{ expense.id }}">
+                        <td>
+                            <div class="form-check">
+                                <input type="checkbox" class="expense-checkbox form-check-input" value="{{ expense.id }}">
+                            </div>
+                        </td>
+                        <td class="text-primary font-bold">¥{{ "%.2f"|format(expense.amount or 0) }}</td>
+                        <td>{{ expense.date }}</td>
+                        <td>{{ expense.category or '未分类' }}</td>
+                        <td>{{ expense.purpose }}</td>
+                        <td>{{ expense.note or '-' }}</td>
+                        <td>
+                            <a href="{{ url_for('stats.edit_expense', expense_id=expense.id) }}" class="btn btn-sm btn-warning">
+                                编辑
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% else %}
+        <div class="card p-5 text-center">
+            <p class="text-muted">暂无孤立支出记录</p>
+        </div>
+        {% endif %}
         
         <!-- 总计卡片 -->
         <div class="card mt-4 border-primary">
@@ -196,151 +263,119 @@
 <script>
 // 复选框全选/取消全选
 const selectAllCheckbox = document.getElementById('select-all');
+const selectAllTableCheckbox = document.getElementById('select-all-table');
 const expenseCheckboxes = document.querySelectorAll('.expense-checkbox');
 const batchAssignBtn = document.getElementById('batch-assign-btn');
-const selectedExpensesInput = document.getElementById('selected-expense-ids');
 
-selectAllCheckbox.addEventListener('change', function() {
+// 为两个全选复选框添加相同的点击事件
+function handleSelectAll() {
+    const isChecked = this.checked;
     expenseCheckboxes.forEach(checkbox => {
-        checkbox.checked = this.checked;
-        // 更新卡片样式
-        updateCardStyle(checkbox);
+        checkbox.checked = isChecked;
     });
-    updateBatchButtonState();
-});
-
-expenseCheckboxes.forEach(checkbox => {
-    checkbox.addEventListener('change', function() {
-        // 更新卡片样式
-        updateCardStyle(this);
-        updateBatchButtonState();
-    });
-    
-    // 防止点击复选框时触发卡片的点击事件
-    checkbox.addEventListener('click', function(e) {
-        e.stopPropagation();
-    });
-});
-
-// 更新卡片样式
-function updateCardStyle(checkbox) {
-    const card = checkbox.closest('.expense-card');
-    if (checkbox.checked) {
-        card.classList.add('border-primary', 'shadow-lg');
-        card.style.backgroundColor = '#f8f9fa';
-    } else {
-        card.classList.remove('border-primary', 'shadow-lg');
-        card.style.backgroundColor = '';
-    }
+    updateSelectedStats();
 }
 
-function updateBatchButtonState() {
-    const checkedCheckboxes = document.querySelectorAll('.expense-checkbox:checked');
-    const checkedCount = checkedCheckboxes.length;
+if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', handleSelectAll);
+}
+if (selectAllTableCheckbox) {
+    selectAllTableCheckbox.addEventListener('change', handleSelectAll);
+}
+
+// 为每个支出复选框添加点击事件
+expenseCheckboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', updateSelectedStats);
+});
+
+// 更新选中状态统计信息
+function updateSelectedStats() {
+    let selectedCount = 0;
+    let selectedAmount = 0;
     
-    // 更新批量按钮状态
-    batchAssignBtn.disabled = checkedCount === 0;
-    
-    // 更新选中的支出ID
-    const selectedIds = Array.from(checkedCheckboxes).map(checkbox => checkbox.value);
-    selectedExpensesInput.value = selectedIds.join(',');
-    
-    // 显示或隐藏选中统计信息
-    const selectedStats = document.getElementById('selected-stats');
-    const selectedCountElem = document.getElementById('selected-count');
-    const selectedAmountElem = document.getElementById('selected-amount');
-    
-    if (checkedCount > 0) {
-        selectedStats.style.display = 'inline';
-        selectedCountElem.textContent = checkedCount;
-        
-        // 计算选中支出的总金额
-        let totalAmount = 0;
-        checkedCheckboxes.forEach(checkbox => {
-            const card = checkbox.closest('.expense-card');
-            const amountText = card.querySelector('.text-primary').textContent;
-            const amount = parseFloat(amountText.replace('¥', '').replace(',', ''));
-            if (!isNaN(amount)) {
-                totalAmount += amount;
+    expenseCheckboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            selectedCount++;
+            // 获取对应的支出记录数据
+            const row = checkbox.closest('.expense-card') || checkbox.closest('tr');
+            if (row) {
+                // 从金额单元格或元素中提取金额
+                const amountElement = row.querySelector('.text-primary.font-bold') || 
+                                     row.querySelector('.text-xl.font-bold.text-primary');
+                if (amountElement) {
+                    const amountText = amountElement.textContent;
+                    const amount = parseFloat(amountText.replace(/[^0-9.]/g, ''));
+                    if (!isNaN(amount)) {
+                        selectedAmount += amount;
+                    }
+                }
             }
-        });
-        
-        // 更新总金额显示，保留两位小数
-        selectedAmountElem.textContent = totalAmount.toFixed(2);
+        }
+    });
+    
+    // 更新界面显示
+    const selectedStats = document.getElementById('selected-stats');
+    const selectedCountElement = document.getElementById('selected-count');
+    const selectedAmountElement = document.getElementById('selected-amount');
+    
+    if (selectedCount > 0) {
+        selectedStats.style.display = 'block';
+        selectedCountElement.textContent = selectedCount;
+        selectedAmountElement.textContent = selectedAmount.toFixed(2);
+        batchAssignBtn.disabled = false;
     } else {
         selectedStats.style.display = 'none';
-        selectedCountElem.textContent = '0';
-        selectedAmountElem.textContent = '0.00';
+        batchAssignBtn.disabled = true;
+    }
+    
+    // 更新全选复选框状态
+    const allChecked = selectedCount === expenseCheckboxes.length;
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = allChecked;
+    }
+    if (selectAllTableCheckbox) {
+        selectAllTableCheckbox.checked = allChecked;
     }
 }
 
-// 为每个卡片添加点击事件
-const cards = document.querySelectorAll('.expense-card');
-cards.forEach(card => {
-    card.addEventListener('click', function(event) {
-        // 如果点击的是复选框、按钮或链接，不触发卡片选择
-        if (event.target.type === 'checkbox' || 
-            event.target.closest('button') || 
-            event.target.closest('a')) {
-            return;
-        }
-        
-        const checkbox = this.querySelector('.expense-checkbox');
-        if (checkbox) {
-            // 切换复选框状态
-            checkbox.checked = !checkbox.checked;
-            
-            // 更新卡片样式
-            updateCardStyle(checkbox);
-            
-            // 更新批量按钮状态
-            updateBatchButtonState();
+// 归属项目按钮点击事件
+batchAssignBtn.addEventListener('click', function() {
+    // 收集选中的支出ID
+    const selectedIds = [];
+    expenseCheckboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            selectedIds.push(checkbox.value);
         }
     });
+    
+    // 设置到隐藏字段
+    document.getElementById('selected-expense-ids').value = selectedIds.join(',');
+    
+    // 显示项目选择模态框
+    const projectModal = new bootstrap.Modal(document.getElementById('projectModal'));
+    projectModal.show();
 });
 
-// 更新全选复选框状态
-function updateSelectAllState() {
-    const totalCheckboxes = document.querySelectorAll('.expense-checkbox').length;
-    const checkedCheckboxes = document.querySelectorAll('.expense-checkbox:checked').length;
-    document.getElementById('select-all').checked = totalCheckboxes > 0 && totalCheckboxes === checkedCheckboxes;
-}
-
-// 打开添加项目模态框
+// 添加项目按钮点击事件
 document.getElementById('add-project-btn').addEventListener('click', function() {
     const addProjectModal = new bootstrap.Modal(document.getElementById('addProjectModal'));
     addProjectModal.show();
 });
 
-// 更新项目选择下拉列表
-  function updateProjectSelectList() {
-    fetch('/get_all_projects')
-      .then(response => response.json())
-      .then(data => {
-        const projectSelect = document.getElementById('project_id');
-        if (projectSelect) {
-          // 清空现有选项，保留"请选择项目"选项
-          const placeholderOption = projectSelect.querySelector('option[value=""]');
-          projectSelect.innerHTML = '';
-          if (placeholderOption) {
-            projectSelect.appendChild(placeholderOption);
-          }
-          
-          // 添加新选项
-          data.projects.forEach(project => {
-            const option = document.createElement('option');
-            option.value = project.id;
-            option.textContent = project.name;
-            projectSelect.appendChild(option);
-          });
-        }
-      })
-      .catch(error => {
-        console.error('更新项目列表失败:', error);
-      });
-  }
+// 打开添加项目模态框链接点击事件
+document.getElementById('open-add-project-modal').addEventListener('click', function() {
+    const projectModal = bootstrap.Modal.getInstance(document.getElementById('projectModal'));
+    if (projectModal) {
+        projectModal.hide();
+    }
+    
+    setTimeout(() => {
+        const addProjectModal = new bootstrap.Modal(document.getElementById('addProjectModal'));
+        addProjectModal.show();
+    }, 300);
+});
 
-// 提交添加项目表单
+// 添加项目表单提交处理
 document.getElementById('add-project-form').addEventListener('submit', function(e) {
     e.preventDefault();
     
@@ -348,244 +383,34 @@ document.getElementById('add-project-form').addEventListener('submit', function(
     
     fetch('/add_project', {
         method: 'POST',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        },
         body: formData
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // 关闭模态框
+            // 关闭添加项目模态框
             const addProjectModal = bootstrap.Modal.getInstance(document.getElementById('addProjectModal'));
-            if (addProjectModal) {
-                addProjectModal.hide();
-            }
+            addProjectModal.hide();
             
-            // 更新项目选择下拉列表
-            updateProjectSelectList();
+            // 刷新项目选择下拉框
+            const projectSelect = document.getElementById('project_id');
+            const newOption = document.createElement('option');
+            newOption.value = data.project_id;
+            newOption.textContent = data.project_name;
+            newOption.selected = true;
+            projectSelect.appendChild(newOption);
             
-            // 重新打开项目选择模态框
+            // 显示项目选择模态框
             const projectModal = new bootstrap.Modal(document.getElementById('projectModal'));
             projectModal.show();
-            
-            alert('项目添加成功');
         } else {
-            alert('项目添加失败: ' + data.error);
+            alert('添加项目失败: ' + (data.message || '未知错误'));
         }
     })
     .catch(error => {
-        alert('提交失败: ' + error);
+        console.error('Error:', error);
+        alert('添加项目时发生错误');
     });
-});
-
-// 从项目选择模态框打开添加项目模态框
-document.getElementById('open-add-project-modal').addEventListener('click', function() {
-    // 先关闭当前的项目选择模态框
-    const projectModal = bootstrap.Modal.getInstance(document.getElementById('projectModal'));
-    if (projectModal) {
-        projectModal.hide();
-    }
-    
-    // 然后打开添加项目模态框
-    const addProjectModal = new bootstrap.Modal(document.getElementById('addProjectModal'));
-    addProjectModal.show();
-});
-
-// 打开项目选择模态框
-batchAssignBtn.addEventListener('click', function() {
-    const checkedExpenses = Array.from(document.querySelectorAll('.expense-checkbox:checked'))
-        .map(checkbox => checkbox.value);
-    if (selectedExpensesInput) {
-        selectedExpensesInput.value = checkedExpenses.join(',');
-    }
-    const projectModal = new bootstrap.Modal(document.getElementById('projectModal'));
-    projectModal.show();
-});
-
-// 创建一个临时通知元素的函数
-function showNotification(message, type = 'success') {
-    // 创建通知元素
-    const notification = document.createElement('div');
-    notification.className = `notification-toast alert alert-${type} z-50 p-4 shadow-lg rounded text-center`;
-    notification.style.position = 'fixed';
-    notification.style.top = '50%';
-    notification.style.left = '50%';
-    notification.style.transform = 'translate(-50%, -50%) scale(0.8)';
-    notification.style.zIndex = '9999';
-    notification.style.minWidth = '300px';
-    notification.style.maxWidth = '90%';
-    notification.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-    notification.style.opacity = '0';
-    notification.innerText = message;
-    
-    // 添加到文档中
-    document.body.appendChild(notification);
-    
-    // 显示通知
-    setTimeout(() => {
-        notification.style.opacity = '1';
-        notification.style.transform = 'translate(-50%, -50%) scale(1)';
-    }, 10);
-    
-    // 设置自动消失
-    setTimeout(() => {
-        notification.style.opacity = '0';
-        notification.style.transform = 'translate(-50%, -50%) scale(0.8)';
-        setTimeout(() => {
-            if (document.body.contains(notification)) {
-                document.body.removeChild(notification);
-            }
-        }, 300);
-    }, 3000);
-}
-
-// 提交归属项目表单
-document.getElementById('project-assign-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(this);
-    
-    fetch('/batch_assign_project', {
-        method: 'POST',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: formData
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('网络响应错误');
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            // 关闭模态框
-            const projectModal = bootstrap.Modal.getInstance(document.getElementById('projectModal'));
-            if (projectModal) {
-                projectModal.hide();
-            }
-            showNotification(data.message || `🎉 成功归属 ${data.count} 条记录`);
-            // 延迟刷新页面，让用户有时间看到通知
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        } else {
-            showNotification(data.error || '❌ 归属失败', 'danger');
-        }
-    })
-    .catch(error => {
-        showNotification('❌ 提交失败，请重试', 'danger');
-    });
-});
-
-// 添加选中统计功能
-function addOrphanSelectionStatsFunctionality() {
-    console.log('初始化选中统计功能');
-    const checkboxes = document.querySelectorAll('.expense-checkbox');
-    const selectAll = document.getElementById('select-all');
-    const selectedStats = document.getElementById('selected-stats');
-    const selectedCount = document.getElementById('selected-count');
-    const selectedAmount = document.getElementById('selected-amount');
-
-    console.log('复选框数量:', checkboxes.length);
-    console.log('全选框:', selectAll);
-    console.log('统计信息容器:', selectedStats);
-    console.log('计数元素:', selectedCount);
-    console.log('金额元素:', selectedAmount);
-    
-    // 如果没有找到必要的元素，直接返回
-    if (!selectedStats || !selectedCount || !selectedAmount) {
-        console.log('未找到必要的DOM元素');
-        return;
-    }
-
-    // 更新选中统计信息
-    function updateSelectionStats() {
-        console.log('更新选中统计信息');
-        let count = 0;
-        let amount = 0;
-
-        checkboxes.forEach(checkbox => {
-            if (checkbox.checked) {
-                count++;
-                // 获取对应的金额，假设在同一行的金额单元格中
-                const row = checkbox.closest('tr');
-                console.log('处理选中的行:', row);
-                if (row) {
-                    // 修正索引：日期、用途、费用类别、复选框、金额、备注、操作
-                    // 金额列应该是第5列（索引为4）
-                    const amountCells = row.querySelectorAll('td');
-                    console.log('行中的单元格数量:', amountCells.length);
-                    if (amountCells.length > 4) {
-                        const amountCell = amountCells[4];
-                        console.log('金额单元格:', amountCell);
-                        if (amountCell) {
-                            const amountText = amountCell.textContent || amountCell.innerText;
-                            console.log('金额文本:', amountText);
-                            const amountValue = parseFloat(amountText.replace(/[^0-9.-]+/g, ""));
-                            console.log('金额数值:', amountValue);
-                            if (!isNaN(amountValue)) {
-                                amount += amountValue;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        console.log('最终统计结果 - 数量:', count, '金额:', amount);
-        
-        // 更新显示
-        selectedCount.textContent = count;
-        selectedAmount.textContent = amount.toFixed(2);
-
-        // 如果有选中项则显示统计信息，否则隐藏
-        if (count > 0) {
-            selectedStats.style.display = 'block';
-            console.log('显示统计信息');
-        } else {
-            selectedStats.style.display = 'none';
-            console.log('隐藏统计信息');
-        }
-
-        // 更新全选框状态
-        if (selectAll) {
-            const totalCheckboxes = checkboxes.length;
-            const checkedCheckboxes = document.querySelectorAll('.expense-checkbox:checked').length;
-            selectAll.checked = totalCheckboxes > 0 && checkedCheckboxes === totalCheckboxes;
-            console.log('更新全选框状态:', selectAll.checked);
-        }
-    }
-
-    // 为每个复选框添加事件监听器
-    checkboxes.forEach((checkbox, index) => {
-        console.log('为复选框添加事件监听器:', index, checkbox);
-        checkbox.addEventListener('change', updateSelectionStats);
-    });
-    
-    // 全选/取消全选功能
-    if (selectAll) {
-        console.log('为全选框添加事件监听器');
-        selectAll.addEventListener('change', function() {
-            console.log('全选框状态改变:', this.checked);
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = selectAll.checked;
-            });
-            updateSelectionStats();
-        });
-    }
-    
-    // 初始调用一次更新
-    console.log('初始调用更新统计信息');
-    updateSelectionStats();
-}
-
-// 页面加载完成后初始化选中统计功能
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('页面加载完成');
-    addOrphanSelectionStatsFunctionality();
 });
 </script>
 {% endblock %}

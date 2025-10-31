@@ -75,10 +75,10 @@
         font-size: 14px;
     }
 </style>
-        <!-- 报销单卡片网格 -->
-        <div class="row">
+        <!-- 移动设备：卡片式布局 -->
+        <div class="row d-md-none">
             {% for reimbursement in reimbursements %}
-            <div class="col-lg-4 col-md-6 mb-4">
+            <div class="col-12 mb-4">
                 <div class="reimbursement-card card h-100">
                     <div class="card-body">
                         <!-- 头部：ID和状态 -->
@@ -145,6 +145,62 @@
                 </div>
             </div>
             {% endfor %}
+        </div>
+        
+        <!-- PC设备：表格布局 -->
+        <div class="table-responsive d-none d-md-block">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>状态</th>
+                        <th>报销金额</th>
+                        <th>支出笔数</th>
+                        <th>提交日期</th>
+                        <th>创建时间</th>
+                        <th>回款金额</th>
+                        <th>回款日期</th>
+                        <th>备注</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for reimbursement in reimbursements %}
+                    <tr>
+                        <td>{{ reimbursement.id }}</td>
+                        <td>
+                            <span class="badge {% if reimbursement.status == '草稿' %}bg-secondary{% elif reimbursement.status == '已提交' %}bg-primary{% elif reimbursement.status == '已批准' %}bg-success{% elif reimbursement.status == '已拒绝' %}bg-danger{% else %}bg-info{% endif %}">
+                                {{ reimbursement.status }}
+                            </span>
+                        </td>
+                        <td>¥{{ "%.2f"|format(reimbursement.calculated_total or 0) }}</td>
+                        <td>{{ reimbursement.expense_count }}</td>
+                        <td>{{ reimbursement.submit_date or '-' }}</td>
+                        <td>{{ reimbursement.created_at }}</td>
+                        <td>
+                            {% if reimbursement.total_paid > 0 %}
+                            <span class="text-success">¥{{ "%.2f"|format(reimbursement.total_paid or 0) }}</span>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>{{ reimbursement.latest_payment_date or '-' }}</td>
+                        <td>{{ reimbursement.note or '-' }}</td>
+                        <td>
+                            {% if reimbursement.status == '草稿' or reimbursement.status == '已拒绝' %}
+                            <a href="{{ url_for('reimbursements.edit_reimbursement', reimbursement_id=reimbursement.id) }}" class="btn btn-sm btn-warning">
+                                编辑
+                            </a>
+                            {% else %}
+                            <a href="{{ url_for('reimbursements.edit_reimbursement', reimbursement_id=reimbursement.id) }}" class="btn btn-sm btn-outline-info">
+                                详情
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
