@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <td>
                             <input type="checkbox" name="expense_ids" value="{{ expense.id }}" class="expense-checkbox form-check-input">
                         </td>
-                        <td>{{ "¥%.2f"|format(expense.amount) }}</td>
+                        <td>{{ "¥%.2f"|format(expense.amount or 0) }}</td>
                         <td>{{ expense.note or '-' }}</td>
                         <td>
                             <div class="action-buttons">

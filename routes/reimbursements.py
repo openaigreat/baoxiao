@@ -451,28 +451,30 @@ def get_draft_reimbursements():
         session['username'] = '默认用户'
     
     try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            # 只获取草稿状态的报销单
-            cursor.execute('''
-                SELECT id, submit_date as submission_date, total_amount, note 
-                FROM reimbursements 
-                WHERE status = '草稿' 
-                ORDER BY submit_date DESC
-            ''', ())
-            reimbursements = cursor.fetchall()
-            
-            result = []
-            for row in reimbursements:
-                result.append({
-                    'id': row[0],
-                    'submission_date': row[1],
-                    'total_amount': row[2],
-                    'note': row[3] or ''
-                })
-            
-            return jsonify({'reimbursements': result})
+        conn = get_db()
+        # 只获取草稿状态的报销单
+        reimbursements = conn.execute('''
+            SELECT id, submit_date as submission_date, total_amount, note 
+            FROM reimbursements 
+            WHERE status = '草稿' 
+            ORDER BY submit_date DESC
+        ''').fetchall()
+        
+        result = []
+        for row in reimbursements:
+            result.append({
+                'id': row['id'],
+                'submission_date': row['submission_date'],
+                'total_amount': float(row['total_amount']) if row['total_amount'] is not None else 0.0,
+                'note': row['note'] or ''
+            })
+        
+        conn.close()
+        return jsonify({'reimbursements': result})
     except Exception as e:
+        logging.error(f"Error getting draft reimbursements: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 @bp.route('/create_reimbursement_and_add_expenses', methods=['POST'])

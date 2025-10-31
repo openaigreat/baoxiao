@@ -145,12 +145,12 @@ def get_all_projects():
     try:
         db = get_db()
         projects = db.execute(
-            'SELECT id, name FROM projects ORDER BY name'
+            "SELECT id, name FROM projects WHERE status = '进行中' ORDER BY name"
         ).fetchall()
         
-        # 转换为字典列表
+        # 转换为字典列表，并在项目名称前加上项目ID
         projects_list = [
-            {'id': project['id'], 'name': project['name']}
+            {'id': project['id'], 'name': f"({project['id']}) {project['name']}"}
             for project in projects
         ]
         

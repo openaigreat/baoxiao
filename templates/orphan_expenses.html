@@ -85,7 +85,7 @@
                         <td>{{ expense.purpose }}</td>
                         <td><input type="checkbox" class="expense-checkbox form-check-input" value="{{ expense.id }}"></td>
                         <td>{{ expense.category or '未分类' }}</td>
-                        <td>{{ "¥%.2f"|format(expense.amount) }}</td>
+                        <td>{{ "¥%.2f"|format(expense.amount or 0) }}</td>
                         <td>{{ expense.note }}</td>
                         <td>
                             <div class="action-buttons">

@@ -107,7 +107,7 @@
                             {% endif %}
                         </td>
                         <td><input type="checkbox" class="expense-checkbox" value="{{ expense.id }}"></td>
-                        <td>{{ "¥%.2f"|format(expense.amount) }}</td>
+                        <td>{{ "¥%.2f"|format(expense.amount or 0) }}</td>
                         <td>{{ expense.note }}</td>
                         <td>
                             <div class="action-buttons">
@@ -149,7 +149,7 @@
                         <select class="form-select" id="project_id" name="project_id" required>
                             <option value="">请选择项目</option>
                             {% for p in projects %}
-                            <option value="{{ p.id }}">{{ p.name }}</option>
+                            <option value="{{ p.id }}" {% if p.status != '进行中' %}disabled{% endif %}>{{ p.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -348,7 +348,7 @@ function updateProjectSelectList() {
                 data.projects.forEach(project => {
                     const option = document.createElement('option');
                     option.value = project.id;
-                    option.textContent = project.name;
+                    option.textContent = project.name;  // 名称已经包含了ID
                     projectSelect.appendChild(option);
                 });
             }
@@ -631,7 +631,7 @@ batchReimbursementBtn.addEventListener('click', function() {
         
         const formData = new FormData(this);
         
-        fetch('/batch_add_to_reimbursement', {
+        fetch('/reimbursements/batch_add_to_reimbursement', {
             method: 'POST',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
@@ -723,7 +723,7 @@ batchReimbursementBtn.addEventListener('click', function() {
             
             const formData = new FormData(this);
             
-            fetch('/create_reimbursement_and_add_expenses', { 
+            fetch('/reimbursements/create_reimbursement_and_add_expenses', { 
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
@@ -761,9 +761,15 @@ batchReimbursementBtn.addEventListener('click', function() {
 
 // 加载报销单列表
 function loadReimbursements() {
-    fetch('/get_draft_reimbursements')
-        .then(response => response.json())
+    fetch('/reimbursements/get_draft_reimbursements')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('网络响应错误: ' + response.status);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('报销单数据:', data); // 调试信息
             const reimbursementSelect = document.getElementById('reimbursement_id');
             if (reimbursementSelect) {
                 // 清空现有选项，保留"请选择报销单"选项
@@ -774,15 +780,15 @@ function loadReimbursements() {
                 }
                 
                 // 添加新选项
-                data.reimbursements.forEach(reimbursement => {
-                    const option = document.createElement('option');
-                    option.value = reimbursement.id;
-                    option.textContent = `报销单 #${reimbursement.id} (${reimbursement.submission_date})`;
-                    reimbursementSelect.appendChild(option);
-                });
-                
-                // 如果没有报销单，显示提示
-                if (data.reimbursements.length === 0) {
+                if (data.reimbursements && data.reimbursements.length > 0) {
+                    data.reimbursements.forEach(reimbursement => {
+                        const option = document.createElement('option');
+                        option.value = reimbursement.id;
+                        option.textContent = `报销单 #${reimbursement.id} (${reimbursement.submission_date})`;
+                        reimbursementSelect.appendChild(option);
+                    });
+                } else {
+                    // 如果没有报销单，显示提示
                     const noOption = document.createElement('option');
                     noOption.value = '';
                     noOption.disabled = true;
@@ -793,6 +799,10 @@ function loadReimbursements() {
         })
         .catch(error => {
             console.error('加载报销单列表失败:', error);
+            const reimbursementSelect = document.getElementById('reimbursement_id');
+            if (reimbursementSelect) {
+                reimbursementSelect.innerHTML = '<option value="">加载失败: ' + error.message + '</option>';
+            }
         });
 }
 

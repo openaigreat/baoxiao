@@ -274,13 +274,24 @@ def import_expense_final():
         # 处理导入的数据
         success_count, error_count = expense_service.process_imported_expenses(df, mapping, session)
         
+        # 获取导入过程中的详细错误信息
+        import_errors = session.pop('import_errors', []) if 'import_errors' in session else []
+        
         # 显示结果
         if success_count == len(df):
             flash(f'🎉 成功导入全部 {success_count} 条记录！', 'success')
         elif success_count > 0:
             flash(f'✅ 部分成功：成功导入 {success_count} 条记录，失败 {error_count} 条记录', 'warning')
+            # 如果有详细错误信息，则显示
+            if import_errors:
+                error_details = "<br>".join(import_errors)
+                flash(f'❌ 详细错误信息：<br>{error_details}', 'danger')
         else:
             flash(f'❌ 导入失败：全部 {error_count} 条记录处理失败，请检查数据格式', 'danger')
+            # 如果有详细错误信息，则显示
+            if import_errors:
+                error_details = "<br>".join(import_errors)
+                flash(f'❌ 详细错误信息：<br>{error_details}', 'danger')
         
         # 清理临时文件
         if os.path.exists(temp_path):

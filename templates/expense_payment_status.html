@@ -27,7 +27,7 @@
                         <td>{{ expense.project_name or '无项目' }}</td>
                         <td>{{ expense.category or '未分类' }}</td>
                         <td>{{ expense.purpose }}</td>
-                        <td>¥{{ "%.2f"|format(expense.expense_amount) }}</td>
+                        <td>¥{{ "%.2f"|format(expense.expense_amount or 0) }}</td>
                         <td>{{ expense.reimbursement_id or '-' }}</td>
                         <td>
                             {% if expense.reimbursement_status %}
@@ -49,7 +49,7 @@
                         </td>
                         <td>
                             {% if expense.allocated_paid_amount > 0 %}
-                                ¥{{ "%.2f"|format(expense.allocated_paid_amount) }}
+                                ¥{{ "%.2f"|format(expense.allocated_paid_amount or 0) }}
                             {% else %}
                                 -
                             {% endif %}

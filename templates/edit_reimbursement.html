@@ -18,7 +18,11 @@
             
             {% if reimbursement.status != '草稿' %}
             <a href="{{ url_for('reimbursements.export_reimbursement', reimbursement_id=reimbursement.id) }}" 
-               class="btn btn-sm btn-outline-primary ms-2">导出</a>
+               class="btn btn-sm btn-outline-primary float-end ms-2">分类汇总后导出</a>
+            {% endif %}
+            
+            {% if reimbursement.status == '草稿' or reimbursement.status == '已拒绝' %}
+            <button type="button" class="btn btn-sm btn-danger float-end" id="delete-reimbursement-btn">删除</button>
             {% endif %}
         </h2>
         
@@ -266,78 +270,113 @@ function showNotification(message, type = 'success') {
     }, 3000);
 }
 
-// 处理移除支出记录
-const removeButtons = document.querySelectorAll('.remove-expense');
-removeButtons.forEach(button => {
-    button.addEventListener('click', function() {
-        if (!confirm('确定要从报销单中移除这条支出记录吗？')) {
-            return;
-        }
-        
-        const expenseId = this.getAttribute('data-expense-id');
-        const reimbursementId = this.getAttribute('data-reimbursement-id');
-        
-        fetch('/remove_expense_from_reimbursement', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: `reimbursement_id=${reimbursementId}&expense_id=${expenseId}`
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification('✅ 移除成功！');
-                // 延迟刷新页面
-                setTimeout(() => {
-                    location.reload();
-                }, 1000);
-            } else {
-                showNotification('移除失败: ' + data.error, 'danger');
+document.addEventListener('DOMContentLoaded', function() {
+    // 删除报销单按钮事件绑定
+    var deleteBtn = document.getElementById('delete-reimbursement-btn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function() {
+            if (!confirm('确定要删除整个报销单吗？此操作不可恢复！')) {
+                return;
             }
-        })
-        .catch(error => {
-            showNotification('提交失败: ' + error, 'danger');
+            var reimbursementId = "{{ reimbursement.id }}";
+            fetch('/reimbursements/delete_reimbursement/' + reimbursementId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('✅ 报销单删除成功！');
+                    setTimeout(() => {
+                        window.location.href = '/reimbursements';
+                    }, 1000);
+                } else {
+                    showNotification('删除失败: ' + data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                showNotification('提交失败: ' + error, 'danger');
+            });
+        });
+    }
+    // 处理移除支出记录
+    const removeButtons = document.querySelectorAll('.remove-expense');
+    removeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            if (!confirm('确定要从报销单中移除这条支出记录吗？')) {
+                return;
+            }
+            
+            const expenseId = this.getAttribute('data-expense-id');
+            const reimbursementId = this.getAttribute('data-reimbursement-id');
+            
+            fetch('/reimbursements/remove_expense_from_reimbursement', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `reimbursement_id=${reimbursementId}&expense_id=${expenseId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('✅ 移除成功！');
+                    // 延迟刷新页面
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    showNotification('移除失败: ' + data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                showNotification('提交失败: ' + error, 'danger');
+            });
         });
     });
-});
 
-// 添加回款记录
-const paymentForm = document.getElementById('payment-form');
-if (paymentForm) {
-    paymentForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const paymentDate = document.getElementById('payment_date').value;
-        const amount = document.getElementById('amount').value;
-        const note = document.getElementById('note').value;
-        
-        fetch('/add_reimbursement_payment/{{ reimbursement.id }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: `payment_date=${paymentDate}&amount=${amount}&note=${encodeURIComponent(note)}`
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification('✅ 回款记录添加成功！');
-                // 重置表单
-                paymentForm.reset();
-                // 延迟刷新页面以显示最新数据
-                setTimeout(() => {
-                    location.reload();
-                }, 1000);
-            } else {
-                showNotification('添加失败: ' + data.error, 'danger');
-            }
-        })
-        .catch(error => {
-            showNotification('提交失败: ' + error, 'danger');
+    // 添加回款记录
+    const paymentForm = document.getElementById('payment-form');
+    if (paymentForm) {
+        paymentForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const paymentDate = document.getElementById('payment_date').value;
+            const amount = document.getElementById('amount').value;
+            const note = document.getElementById('note').value;
+            
+            var reimbursementId = "{{ reimbursement.id }}";
+            fetch('/reimbursements/add_reimbursement_payment/' + reimbursementId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `payment_date=${paymentDate}&amount=${amount}&note=${encodeURIComponent(note)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('✅ 回款记录添加成功！');
+                    // 重置表单
+                    paymentForm.reset();
+                    // 延迟刷新页面以显示最新数据
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    showNotification('添加失败: ' + data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                showNotification('提交失败: ' + error, 'danger');
+            });
         });
-    });
-}</script>
+    }
+});
+</script>
 {% endblock %}

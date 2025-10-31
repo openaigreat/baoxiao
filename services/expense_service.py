@@ -98,17 +98,22 @@ class ExpenseService:
         success_count = 0
         error_count = 0
         
+        # 存储每行的错误信息
+        row_errors = []
+        
         try:
             for index, row in df.iterrows():
                 try:
                     # === 日期处理 ===
                     if pd.isna(row[mapping['date_col']]):
+                        row_errors.append(f"第{index+2}行: 日期为空")
                         error_count += 1
                         continue  # 跳过插入操作
                     else:
                         try:
                             date = pd.to_datetime(row[mapping['date_col']]).strftime('%Y-%m-%d')
                         except pd.errors.ParserError:
+                            row_errors.append(f"第{index+2}行: 日期格式错误")
                             error_count += 1
                             continue  # 跳过插入操作
                     
@@ -120,7 +125,9 @@ class ExpenseService:
                         try:
                             project_id = int(project_id)
                         except ValueError:
-                            project_id = None  # 如果无法转换为整数，则设为None
+                            row_errors.append(f"第{index+2}行: 项目ID格式错误")
+                            error_count += 1
+                            continue  # 跳过插入操作
                     
                     # === 用途处理 ===
                     purpose = row[mapping['purpose_col']]
@@ -129,11 +136,12 @@ class ExpenseService:
                     
                     # === 金额处理 ===
                     try:
-                        amount = float(row[mapping['amount_col']])
-                        if amount <= 0:
-                            error_count += 1
-                            continue  # 跳过非正数金额
-                    except (ValueError, TypeError):
+                        amount_value = row[mapping['amount_col']]
+                        # 格式化金额字段，移除货币符号、千位分隔符等
+                        amount = self._format_amount(amount_value)
+                        # 移除了金额必须大于0的检查，允许0值
+                    except (ValueError, TypeError) as e:
+                        row_errors.append(f"第{index+2}行: 金额格式错误 - {str(e)}")
                         error_count += 1
                         continue  # 跳过无法转换为浮点数的金额
                     
@@ -163,11 +171,18 @@ class ExpenseService:
                     success_count += 1
                     
                 except Exception as row_error:
-                    logging.error(f"处理第 {index+2} 行数据时出错: {row_error}")
+                    error_msg = f"第{index+2}行: 处理时发生未知错误 - {str(row_error)}"
+                    row_errors.append(error_msg)
+                    logging.error(error_msg)
                     error_count += 1
                     continue
             
             conn.commit()
+            
+            # 将错误信息存储到session中，以便在页面上显示
+            if row_errors:
+                session['import_errors'] = row_errors
+                
             return success_count, error_count
             
         except Exception as e:
@@ -176,3 +191,37 @@ class ExpenseService:
             raise DatabaseError(f"数据导入失败: {str(e)}")
         finally:
             conn.close()
+    
+    def _format_amount(self, amount_value):
+        """
+        格式化金额字段，处理各种可能的金额格式
+        :param amount_value: 原始金额值
+        :return: 格式化后的浮点数金额
+        """
+        # 如果金额为空，则赋值为0
+        if pd.isna(amount_value) or amount_value == '':
+            return 0.0
+        
+        # 转换为字符串进行处理
+        amount_str = str(amount_value).strip()
+        
+        # 如果处理后是空字符串，则赋值为0
+        if not amount_str:
+            return 0.0
+        
+        # 移除常见的非数字字符（货币符号、千位分隔符等）
+        # 保留数字、小数点和负号
+        import re
+        amount_str = re.sub(r'[^\d.-]', '', amount_str)
+        
+        # 处理空字符串
+        if not amount_str:
+            return 0.0
+        
+        # 转换为浮点数
+        try:
+            amount = float(amount_str)
+            return amount
+        except ValueError:
+            # 如果转换失败，返回0
+            return 0.0

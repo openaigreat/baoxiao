@@ -97,15 +97,12 @@
                         <td>{{ reimbursement.latest_payment_date or '-' }}</td>
                         <td>
                             {% if reimbursement.status == '草稿' or reimbursement.status == '已拒绝' %}
-                            <a href="{{ url_for('reimbursements.edit_reimbursement', reimbursement_id=reimbursement.id) }}" class="btn btn-sm btn-warning me-1">
+                            <a href="{{ url_for('reimbursements.edit_reimbursement', reimbursement_id=reimbursement.id) }}" class="btn btn-sm btn-warning">
                                 编辑
                             </a>
-                            <button type="button" class="btn btn-sm btn-danger delete-btn" data-id="{{ reimbursement.id }}">
-                                删除
-                            </button>
                             {% else %}
                             <a href="{{ url_for('reimbursements.edit_reimbursement', reimbursement_id=reimbursement.id) }}" class="btn btn-sm btn-outline-info">
-                                查看详情
+                                详情
                             </a>
                             {% endif %}
                         </td>
@@ -168,51 +165,5 @@ window.addEventListener('DOMContentLoaded', function() {
         document.getElementById('dateTo').value = dateTo;
     }
 });
-
-// 删除报销单的AJAX处理
-const deleteButtons = document.querySelectorAll('.delete-btn');
-deleteButtons.forEach(button => {
-    button.addEventListener('click', function() {
-        const reimbursementId = this.getAttribute('data-id');
-        
-        if (confirm('确定要删除此报销单吗？')) {
-            fetch(`/delete_reimbursement/${reimbursementId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // 显示成功提示
-                    const message = document.createElement('div');
-                    message.className = 'alert alert-success fixed-top w-50 mx-auto mt-3';
-                    message.role = 'alert';
-                    message.innerHTML = `<strong>成功!</strong> 报销单已删除。`;
-                    document.body.appendChild(message);
-                    
-                    // 3秒后移除提示
-                    setTimeout(() => {
-                        message.remove();
-                    }, 3000);
-                    
-                    // 从DOM中移除该行
-                    this.closest('tr').remove();
-                    
-                    // 可以选择刷新页面或更新统计数据
-                } else {
-                    alert('删除失败: ' + (data.error || '未知错误'));
-                }
-            })
-            .catch(error => {
-                console.error('删除出错:', error);
-                alert('删除过程中发生错误');
-            });
-        }
-    });
-});
-
-
 </script>
 {% endblock %}
