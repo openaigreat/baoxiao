@@ -21,12 +21,10 @@ class ReimbursementService:
         try:
             reimbursements = conn.execute('''
                 SELECT r.*,
-                       COUNT(re.id) as expense_count,
-                       COALESCE(SUM(re.reimbursement_amount), 0) as calculated_total
+                       (SELECT COUNT(*) FROM reimbursement_expenses WHERE reimbursement_id = r.id) as expense_count,
+                       COALESCE((SELECT SUM(reimbursement_amount) FROM reimbursement_expenses WHERE reimbursement_id = r.id), 0) as calculated_total
                 FROM reimbursements r
-                LEFT JOIN reimbursement_expenses re ON r.id = re.reimbursement_id
                 WHERE r.status IN ('草稿', '已拒绝')
-                GROUP BY r.id
                 ORDER BY r.created_at DESC
             ''').fetchall()
             

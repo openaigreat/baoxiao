@@ -28,7 +28,7 @@
 </style>
 <div class="card shadow mb-4">
     <div class="card-body">
-        <h2 class="card-title mb-4">{{ title }}</h2>
+        <h5 class="card-title mb-4">{{ title }}</h5>
         
         {% if expenses %}
         <!-- 支出记录：响应式布局 -->
@@ -70,7 +70,15 @@
                             <div class="col-6">
                                 <div class="d-flex justify-content-between mb-1">
                                     <span class="text-muted">报销单ID：</span>
-                                    <span class="font-medium">{{ expense.reimbursement_id or '-' }}</span>
+                                    <span class="font-medium">
+                                        {% if expense.reimbursement_id %}
+                                        <a href="{{ url_for('reimbursements.edit_reimbursement', reimbursement_id=expense.reimbursement_id) }}" class="text-primary">
+                                            {{ expense.reimbursement_id }}
+                                        </a>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -85,7 +93,7 @@
             <table class="table table-striped table-hover">
                 <thead>
                     <tr>
-                        <th>用途</th>
+                        <th width="40%">用途</th>
                         <th>金额</th>
                         <th>支出日期</th>
                         <th>类别</th>
@@ -102,7 +110,15 @@
                         <td>{{ expense.expense_date }}</td>
                         <td>{{ expense.category or '未分类' }}</td>
                         <td>{{ expense.project_name or '无项目' }}</td>
-                        <td>{{ expense.reimbursement_id or '-' }}</td>
+                        <td>
+                            {% if expense.reimbursement_id %}
+                            <a href="{{ url_for('reimbursements.edit_reimbursement', reimbursement_id=expense.reimbursement_id) }}" class="text-primary">
+                                {{ expense.reimbursement_id }}
+                            </a>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
                         <td>
                             <span class="badge {% if expense.reimbursement_status == '已回款' %}bg-success{% elif expense.reimbursement_status in ['已提交', '审核中', '已批准'] %}bg-primary{% else %}bg-secondary{% endif %}">
                                 {{ expense.reimbursement_status or '未报销' }}

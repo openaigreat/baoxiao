@@ -25,7 +25,7 @@
 <div class="card shadow mb-4">
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="card-title mb-0">孤立支出明细 (共 {{ expense_count }} 条)</h2>
+            <h2 class="card-title mb-0">孤立支出明细 </h2>
             <div class="d-flex gap-2">
                 <button id="batch-assign-btn" class="btn btn-sm btn-primary" disabled>
                     归属项目
@@ -143,15 +143,15 @@
             <table class="table table-striped table-hover">
                 <thead>
                     <tr>
+                        <th>日期</th>
+                        <th width="50%">用途</th>
+                        <th>类别</th>
                         <th>
                             <div class="form-check">
                                 <input type="checkbox" id="select-all-table" class="form-check-input">
                             </div>
                         </th>
                         <th>金额</th>
-                        <th>日期</th>
-                        <th>类别</th>
-                        <th>用途</th>
                         <th>备注</th>
                         <th>操作</th>
                     </tr>
@@ -159,15 +159,15 @@
                 <tbody>
                     {% for expense in expenses %}
                     <tr class="expense-table-row" data-id="{{ expense.id }}">
+                        <td>{{ expense.date }}</td>
+                        <td>{{ expense.purpose }}</td>
+                        <td>{{ expense.category or '未分类' }}</td>
                         <td>
                             <div class="form-check">
                                 <input type="checkbox" class="expense-checkbox form-check-input" value="{{ expense.id }}">
                             </div>
                         </td>
                         <td class="text-primary font-bold">¥{{ "%.2f"|format(expense.amount or 0) }}</td>
-                        <td>{{ expense.date }}</td>
-                        <td>{{ expense.category or '未分类' }}</td>
-                        <td>{{ expense.purpose }}</td>
                         <td>{{ expense.note or '-' }}</td>
                         <td>
                             <a href="{{ url_for('stats.edit_expense', expense_id=expense.id) }}" class="btn btn-sm btn-warning">
@@ -286,6 +286,62 @@ if (selectAllTableCheckbox) {
 // 为每个支出复选框添加点击事件
 expenseCheckboxes.forEach(checkbox => {
     checkbox.addEventListener('change', updateSelectedStats);
+    
+    // 防止点击复选框时触发父元素的点击事件
+    checkbox.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+});
+
+// 为每个卡片添加点击事件
+const cards = document.querySelectorAll('.expense-card');
+cards.forEach(card => {
+    const checkbox = card.querySelector('.expense-checkbox');
+    if (!checkbox) {
+        return;
+    }
+    
+    card.addEventListener('click', function(e) {
+        // 如果点击的是按钮或链接，不触发卡片的点击事件
+        if (e.target.tagName === 'BUTTON' || 
+            e.target.closest('button') || 
+            e.target.tagName === 'A' || 
+            e.target.closest('a')) {
+            return;
+        }
+        
+        // 切换复选框状态
+        checkbox.checked = !checkbox.checked;
+        
+        // 更新选中统计信息
+        updateSelectedStats();
+    });
+});
+
+// 为表格行添加点击事件
+const expenseTableRows = document.querySelectorAll('tr.expense-table-row');
+expenseTableRows.forEach(row => {
+    const checkbox = row.querySelector('.expense-checkbox');
+    if (!checkbox) {
+        return;
+    }
+    
+    row.addEventListener('click', function(e) {
+        // 如果点击的是按钮、链接或复选框，不触发行的点击事件
+        if (e.target.tagName === 'BUTTON' || 
+            e.target.closest('button') || 
+            e.target.tagName === 'A' || 
+            e.target.closest('a') ||
+            e.target.tagName === 'INPUT') {
+            return;
+        }
+        
+        // 切换复选框状态
+        checkbox.checked = !checkbox.checked;
+        
+        // 更新选中统计信息
+        updateSelectedStats();
+    });
 });
 
 // 更新选中状态统计信息

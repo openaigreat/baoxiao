@@ -16,29 +16,38 @@ class StatsService:
             # 获取项目统计，包括支出总额、已提交金额和回款状态统计（只显示进行中的项目）
             project_stats = conn.execute('''
                 SELECT p.id, p.name,
-                       COALESCE(SUM(e.amount), 0) AS total_expense,
-                       COALESCE(SUM(CASE WHEN re.expense_id IS NOT NULL THEN e.amount ELSE 0 END), 0) AS submitted_amount,
-                       COALESCE(SUM(CASE WHEN re.expense_id IS NOT NULL AND r.status = '已回款' THEN e.amount ELSE 0 END), 0) AS paid_amount,
-                       COALESCE(SUM(CASE WHEN re.expense_id IS NOT NULL AND r.status != '已回款' THEN e.amount ELSE 0 END), 0) AS unpaid_amount,
+                       COALESCE((SELECT SUM(amount) FROM expenses WHERE project_id = p.id), 0) AS total_expense,
+                       COALESCE((SELECT SUM(e.amount) FROM expenses e 
+                                 JOIN reimbursement_expenses re ON e.id = re.expense_id 
+                                 WHERE e.project_id = p.id), 0) AS submitted_amount,
+                       COALESCE((SELECT SUM(e.amount) FROM expenses e 
+                                 JOIN reimbursement_expenses re ON e.id = re.expense_id 
+                                 JOIN reimbursements r ON re.reimbursement_id = r.id 
+                                 WHERE e.project_id = p.id AND r.status = '已回款'), 0) AS paid_amount,
+                       COALESCE((SELECT SUM(e.amount) FROM expenses e 
+                                 JOIN reimbursement_expenses re ON e.id = re.expense_id 
+                                 JOIN reimbursements r ON re.reimbursement_id = r.id 
+                                 WHERE e.project_id = p.id AND r.status != '已回款'), 0) AS unpaid_amount,
                        p.note, p.status
                 FROM projects p
-                LEFT JOIN expenses e ON p.id = e.project_id
-                LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
-                LEFT JOIN reimbursements r ON re.reimbursement_id = r.id
                 WHERE p.status = '进行中'
-                GROUP BY p.id, p.name, p.note, p.status
             ''').fetchall()
             
             # 获取无项目支出统计，包括已提交金额和回款状态统计
             orphan_stats = conn.execute('''
-                SELECT COALESCE(SUM(e.amount), 0) AS total_expense,
-                       COALESCE(SUM(CASE WHEN re.expense_id IS NOT NULL THEN e.amount ELSE 0 END), 0) AS submitted_amount,
-                       COALESCE(SUM(CASE WHEN re.expense_id IS NOT NULL AND r.status = '已回款' THEN e.amount ELSE 0 END), 0) AS paid_amount,
-                       COALESCE(SUM(CASE WHEN re.expense_id IS NOT NULL AND r.status != '已回款' THEN e.amount ELSE 0 END), 0) AS unpaid_amount
-                FROM expenses e
-                LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
-                LEFT JOIN reimbursements r ON re.reimbursement_id = r.id
-                WHERE e.project_id IS NULL
+                SELECT 
+                    COALESCE((SELECT SUM(amount) FROM expenses WHERE project_id IS NULL), 0) AS total_expense,
+                    COALESCE((SELECT SUM(e.amount) FROM expenses e 
+                              JOIN reimbursement_expenses re ON e.id = re.expense_id 
+                              WHERE e.project_id IS NULL), 0) AS submitted_amount,
+                    COALESCE((SELECT SUM(e.amount) FROM expenses e 
+                              JOIN reimbursement_expenses re ON e.id = re.expense_id 
+                              JOIN reimbursements r ON re.reimbursement_id = r.id 
+                              WHERE e.project_id IS NULL AND r.status = '已回款'), 0) AS paid_amount,
+                    COALESCE((SELECT SUM(e.amount) FROM expenses e 
+                              JOIN reimbursement_expenses re ON e.id = re.expense_id 
+                              JOIN reimbursements r ON re.reimbursement_id = r.id 
+                              WHERE e.project_id IS NULL AND r.status != '已回款'), 0) AS unpaid_amount
             ''').fetchone()
             
             orphan_total = orphan_stats['total_expense'] or 0
@@ -176,10 +185,9 @@ class StatsService:
                 SELECT category, 
                        COUNT(*) as expense_count,
                        SUM(amount) as total_amount,
-                       COUNT(CASE WHEN re.expense_id IS NOT NULL THEN 1 END) as submitted_count,
-                       SUM(CASE WHEN re.expense_id IS NOT NULL THEN amount ELSE 0 END) as submitted_amount
+                       (SELECT COUNT(*) FROM reimbursement_expenses re WHERE re.expense_id = e.id) as submitted_count,
+                       (SELECT CASE WHEN EXISTS(SELECT 1 FROM reimbursement_expenses re WHERE re.expense_id = e.id) THEN e.amount ELSE 0 END) as submitted_amount
                 FROM expenses e
-                LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
                 WHERE e.created_by = ?
                 GROUP BY category
                 ORDER BY total_amount DESC
@@ -189,10 +197,9 @@ class StatsService:
             total_stats = conn.execute('''
                 SELECT COUNT(*) as total_count,
                        SUM(amount) as total_amount,
-                       COUNT(CASE WHEN re.expense_id IS NOT NULL THEN 1 END) as total_submitted_count,
-                       SUM(CASE WHEN re.expense_id IS NOT NULL THEN amount ELSE 0 END) as total_submitted_amount
+                       COUNT(CASE WHEN EXISTS(SELECT 1 FROM reimbursement_expenses re WHERE re.expense_id = e.id) THEN 1 END) as total_submitted_count,
+                       SUM(CASE WHEN EXISTS(SELECT 1 FROM reimbursement_expenses re WHERE re.expense_id = e.id) THEN amount ELSE 0 END) as total_submitted_amount
                 FROM expenses e
-                LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
                 WHERE e.created_by = ?
             ''', (session.get('user_id', 1),)).fetchone()
             
@@ -275,7 +282,7 @@ class StatsService:
     def get_expense_payment_status(self, filters=None):
         """
         获取支出记录的回款状态
-        :param filters: 筛选条件字典，可包含project_name, category, payment_status, sort_by等
+        :param filters: 筛选条件字典，可包含project_name, category, payment_status, sort_by, date_from, date_to, purpose等
         :return: 支出记录及其回款状态列表
         """
         conn = get_db()
@@ -294,6 +301,20 @@ class StatsService:
                 if filters.get('category'):
                     where_conditions.append("e.category LIKE ?")
                     params.append(f"%{filters['category']}%")
+                
+                # 日期范围筛选
+                if filters.get('date_from'):
+                    where_conditions.append("e.date >= ?")
+                    params.append(filters['date_from'])
+                
+                if filters.get('date_to'):
+                    where_conditions.append("e.date <= ?")
+                    params.append(filters['date_to'])
+                
+                # 用途筛选
+                if filters.get('purpose'):
+                    where_conditions.append("e.description LIKE ?")
+                    params.append(f"%{filters['purpose']}%")
                 
                 # 回款状态筛选
                 if filters.get('payment_status'):
@@ -387,22 +408,36 @@ class StatsService:
             
             # 按项目统计各类支出金额（分页）
             stats_query = '''
+                WITH project_list AS (
+                    SELECT DISTINCT COALESCE(p.id, 0) as id, COALESCE(p.name, '无项目') as name
+                    FROM expenses e
+                    LEFT JOIN projects p ON e.project_id = p.id
+                    ORDER BY p.name
+                    LIMIT ? OFFSET ?
+                )
                 SELECT 
-                    COALESCE(p.id, 0) as project_id,
-                    COALESCE(p.name, '无项目') as project_name,
-                    SUM(CASE WHEN re.expense_id IS NULL THEN e.amount ELSE 0 END) as unreimbursed_amount,
-                    SUM(CASE WHEN re.expense_id IS NOT NULL AND r.status != '已回款' THEN e.amount ELSE 0 END) as reimbursed_unpaid_amount,
-                    SUM(CASE WHEN re.expense_id IS NOT NULL AND r.status = '已回款' THEN e.amount ELSE 0 END) as reimbursed_paid_amount,
-                    COUNT(CASE WHEN re.expense_id IS NULL THEN 1 END) as unreimbursed_count,
-                    COUNT(CASE WHEN re.expense_id IS NOT NULL AND r.status != '已回款' THEN 1 END) as reimbursed_unpaid_count,
-                    COUNT(CASE WHEN re.expense_id IS NOT NULL AND r.status = '已回款' THEN 1 END) as reimbursed_paid_count
-                FROM expenses e
-                LEFT JOIN projects p ON e.project_id = p.id
-                LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
-                LEFT JOIN reimbursements r ON re.reimbursement_id = r.id
-                GROUP BY p.id, p.name
-                ORDER BY p.name
-                LIMIT ? OFFSET ?
+                    pl.id as project_id,
+                    pl.name as project_name,
+                    COALESCE((SELECT SUM(amount) FROM expenses WHERE project_id = pl.id AND id NOT IN (SELECT expense_id FROM reimbursement_expenses)), 0) as unreimbursed_amount,
+                    COALESCE((SELECT SUM(e.amount) FROM expenses e 
+                              JOIN reimbursement_expenses re ON e.id = re.expense_id 
+                              JOIN reimbursements r ON re.reimbursement_id = r.id 
+                              WHERE e.project_id = pl.id AND r.status != '已回款'), 0) as reimbursed_unpaid_amount,
+                    COALESCE((SELECT SUM(e.amount) FROM expenses e 
+                              JOIN reimbursement_expenses re ON e.id = re.expense_id 
+                              JOIN reimbursements r ON re.reimbursement_id = r.id 
+                              WHERE e.project_id = pl.id AND r.status = '已回款'), 0) as reimbursed_paid_amount,
+                    COALESCE((SELECT COUNT(*) FROM expenses WHERE project_id = pl.id AND id NOT IN (SELECT expense_id FROM reimbursement_expenses)), 0) as unreimbursed_count,
+                    COALESCE((SELECT COUNT(*) FROM expenses e 
+                              JOIN reimbursement_expenses re ON e.id = re.expense_id 
+                              JOIN reimbursements r ON re.reimbursement_id = r.id 
+                              WHERE e.project_id = pl.id AND r.status != '已回款'), 0) as reimbursed_unpaid_count,
+                    COALESCE((SELECT COUNT(*) FROM expenses e 
+                              JOIN reimbursement_expenses re ON e.id = re.expense_id 
+                              JOIN reimbursements r ON re.reimbursement_id = r.id 
+                              WHERE e.project_id = pl.id AND r.status = '已回款'), 0) as reimbursed_paid_count
+                FROM project_list pl
+                ORDER BY pl.name
             '''
             stats = conn.execute(stats_query, (per_page, offset)).fetchall()
             

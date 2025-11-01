@@ -27,7 +27,7 @@
                     <p class="h5 font-weight-bold">支出总额：¥{{ "%.2f"|format(stats|sum(attribute='total_expense', start=0)) }}</p>
                 </div>
                 <div class="col-md-2">
-                    <p class="h5 font-weight-bold text-danger">未报销金额：¥{{ "%.2f"|format(stats|sum(attribute='total_expense', start=0) - stats|sum(attribute='submitted_amount', start=0)) }}</p>
+                    <p class="h5 font-weight-bold text-danger {% if stats|sum(attribute='total_expense', start=0) - stats|sum(attribute='submitted_amount', start=0) > 0 %}bg-primary bg-opacity-20 p-2 rounded{% endif %}">未报销金额：¥{{ "%.2f"|format(stats|sum(attribute='total_expense', start=0) - stats|sum(attribute='submitted_amount', start=0)) }}</p>
                 </div>
                 <div class="col-md-2">
                     <p class="h5 font-weight-bold">已提交金额：¥{{ "%.2f"|format(stats|sum(attribute='submitted_amount', start=0)) }}</p>
@@ -74,7 +74,7 @@
                                         <p class="font-weight-bold">支出总额：¥{{ "%.2f"|format(item.total_expense or 0) }}</p>
                                     </div>
                                     <div class="col-6 mb-3">
-                                        <p class="font-weight-bold text-danger">未报销金额：¥{{ "%.2f"|format((item.total_expense or 0) - (item.submitted_amount or 0)) }}</p>
+                                        <p class="font-weight-bold text-danger {% if (item.total_expense or 0) - (item.submitted_amount or 0) > 0 %}bg-primary bg-opacity-20 p-2 rounded{% endif %}">未报销金额：¥{{ "%.2f"|format((item.total_expense or 0) - (item.submitted_amount or 0)) }}</p>
                                     </div>
                                     <div class="col-6 mb-3">
                                         <p class="font-weight-bold">已提交金额：¥{{ "%.2f"|format(item.submitted_amount or 0) }}</p>
@@ -122,7 +122,7 @@
                                 <p class="font-weight-bold">支出总额：¥{{ "%.2f"|format(item.total_expense or 0) }}</p>
                             </div>
                             <div class="col-6 mb-3">
-                                <p class="font-weight-bold text-danger">未报销金额：¥{{ "%.2f"|format((item.total_expense or 0) - (item.submitted_amount or 0)) }}</p>
+                                <p class="font-weight-bold text-danger {% if (item.total_expense or 0) - (item.submitted_amount or 0) > 0 %}bg-primary bg-opacity-20 p-2 rounded{% endif %}">未报销金额：¥{{ "%.2f"|format((item.total_expense or 0) - (item.submitted_amount or 0)) }}</p>
                             </div>
                             <div class="col-6 mb-3">
                                 <p class="font-weight-bold">已提交金额：¥{{ "%.2f"|format(item.submitted_amount or 0) }}</p>
@@ -187,7 +187,7 @@
                                         </span>
                                     </td>
                                     <td>¥{{ "%.2f"|format(item.total_expense or 0) }}</td>
-                                    <td class="text-danger">¥{{ "%.2f"|format((item.total_expense or 0) - (item.submitted_amount or 0)) }}</td>
+                                    <td class="text-danger {% if (item.total_expense or 0) - (item.submitted_amount or 0) > 0 %}bg-primary bg-opacity-20{% endif %}">¥{{ "%.2f"|format((item.total_expense or 0) - (item.submitted_amount or 0)) }}</td>
                                     <td>¥{{ "%.2f"|format(item.submitted_amount or 0) }}</td>
                                     <td class="text-success">¥{{ "%.2f"|format(item.paid_amount or 0) }}</td>
                                     <td>¥{{ "%.2f"|format(item.unpaid_amount or 0) }}</td>
@@ -213,7 +213,7 @@
                                         </span>
                                     </td>
                                     <td>¥{{ "%.2f"|format(item.total_expense or 0) }}</td>
-                                    <td class="text-danger">¥{{ "%.2f"|format((item.total_expense or 0) - (item.submitted_amount or 0)) }}</td>
+                                    <td class="text-danger {% if (item.total_expense or 0) - (item.submitted_amount or 0) > 0 %}bg-primary bg-opacity-20{% endif %}">¥{{ "%.2f"|format((item.total_expense or 0) - (item.submitted_amount or 0)) }}</td>
                                     <td>¥{{ "%.2f"|format(item.submitted_amount or 0) }}</td>
                                     <td class="text-success">¥{{ "%.2f"|format(item.paid_amount or 0) }}</td>
                                     <td>¥{{ "%.2f"|format(item.unpaid_amount or 0) }}</td>

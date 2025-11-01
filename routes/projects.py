@@ -89,16 +89,21 @@ def view_all_projects():
                 p.name,
                 p.status,
                 p.note,
-                COALESCE(SUM(e.amount), 0) as total_expense,
-                COALESCE(SUM(CASE WHEN r.status IN ('已提交', '审核中', '已批准', '已回款') THEN e.amount ELSE 0 END), 0) as submitted_amount,
-                COALESCE(SUM(CASE WHEN r.status = '已回款' THEN e.amount ELSE 0 END), 0) as paid_amount,
-                COALESCE(SUM(CASE WHEN r.status IN ('已提交', '审核中', '已批准') THEN e.amount ELSE 0 END), 0) as unpaid_amount
+                COALESCE((SELECT SUM(amount) FROM expenses WHERE project_id = p.id), 0) as total_expense,
+                COALESCE((SELECT SUM(e.amount) FROM expenses e 
+                          JOIN reimbursement_expenses re ON e.id = re.expense_id 
+                          JOIN reimbursements r ON re.reimbursement_id = r.id 
+                          WHERE e.project_id = p.id AND r.status IN ('已提交', '审核中', '已批准', '已回款')), 0) as submitted_amount,
+                COALESCE((SELECT SUM(e.amount) FROM expenses e 
+                          JOIN reimbursement_expenses re ON e.id = re.expense_id 
+                          JOIN reimbursements r ON re.reimbursement_id = r.id 
+                          WHERE e.project_id = p.id AND r.status = '已回款'), 0) as paid_amount,
+                COALESCE((SELECT SUM(e.amount) FROM expenses e 
+                          JOIN reimbursement_expenses re ON e.id = re.expense_id 
+                          JOIN reimbursements r ON re.reimbursement_id = r.id 
+                          WHERE e.project_id = p.id AND r.status IN ('已提交', '审核中', '已批准')), 0) as unpaid_amount
             FROM projects p
-            LEFT JOIN expenses e ON p.id = e.project_id
-            LEFT JOIN reimbursement_expenses re ON e.id = re.expense_id
-            LEFT JOIN reimbursements r ON re.reimbursement_id = r.id
             {where_clause}
-            GROUP BY p.id, p.name, p.status, p.note
             ORDER BY {order_clause}
             LIMIT ? OFFSET ?
         '''

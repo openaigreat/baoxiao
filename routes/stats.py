@@ -478,6 +478,9 @@ def expense_payment_status():
     # 获取筛选参数
     project_name = request.args.get('project_name', '').strip()
     category = request.args.get('category', '').strip()
+    date_from = request.args.get('date_from', '').strip()
+    date_to = request.args.get('date_to', '').strip()
+    purpose = request.args.get('purpose', '').strip()
     payment_status = request.args.get('payment_status', '').strip()
     sort_by = request.args.get('sort_by', 'date_desc').strip()
     
@@ -488,6 +491,12 @@ def expense_payment_status():
             filters['project_name'] = project_name
         if category:
             filters['category'] = category
+        if date_from:
+            filters['date_from'] = date_from
+        if date_to:
+            filters['date_to'] = date_to
+        if purpose:
+            filters['purpose'] = purpose
         if payment_status:
             filters['payment_status'] = payment_status
         if sort_by:

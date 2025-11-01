@@ -143,8 +143,8 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="bg-light p-3 rounded mb-4">
                 <div class="d-flex flex-wrap gap-3 align-items-center">
                     <div class="form-check form-check-inline">
-                        <input type="checkbox" id="select-all" class="form-check-input">
-                        <label for="select-all" class="form-check-label">全选</label>
+                        <input type="checkbox" id="select-all-mobile" class="form-check-input select-all-checkbox">
+                        <label for="select-all-mobile" class="form-check-label">全选</label>
                     </div>
                     
                     <div class="text-muted">排序方式:</div>
@@ -252,15 +252,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 <table class="table table-striped table-hover">
                     <thead>
                         <tr>
+                            <th>日期</th>
+                            <th width="50%">用途</th>
+                            <th>项目</th>
                             <th>
                                 <div class="form-check">
-                                    <input type="checkbox" id="select-all" class="form-check-input">
+                                    <input type="checkbox" id="select-all-table" class="form-check-input select-all-checkbox">
                                 </div>
                             </th>
                             <th>金额</th>
-                            <th>日期</th>
-                            <th>用途</th>
-                            <th>项目</th>
                             <th>类别</th>
                             <th>备注</th>
                             <th>操作</th>
@@ -269,15 +269,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     <tbody>
                         {% for expense in expenses %}
                         <tr class="expense-table-row">
+                            <td>{{ expense.date }}</td>
+                            <td>{{ expense.purpose }}</td>
+                            <td>{{ expense.project_name or '无项目' }}</td>
                             <td>
                                 <div class="form-check">
                                     <input type="checkbox" name="expense_ids" value="{{ expense.id }}" class="expense-checkbox form-check-input">
                                 </div>
                             </td>
-                            <td class="font-bold text-primary">¥{{ "%.2f"|format(expense.amount or 0) }}</td>
-                            <td>{{ expense.date }}</td>
-                            <td>{{ expense.purpose }}</td>
-                            <td>{{ expense.project_name or '无项目' }}</td>
+                            <td>¥{{ "%.2f"|format(expense.amount or 0) }}</td>
                             <td>{{ expense.category or '未分类' }}</td>
                             <td>{{ expense.note or '-' }}</td>
                             <td>
@@ -301,7 +301,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             {% else %}
             <div class="text-center py-4">
-                <p class="text-muted">暂无费用记录</p>
+                <p class="text-muted">暂无未报销的费用记录</p>
             </div>
             {% endif %}
         </div>
@@ -309,19 +309,36 @@ document.addEventListener('DOMContentLoaded', function() {
 </form>
 
 <script>
+    // 更新表格行样式
+    function updateTableRowStyle(checkbox) {
+        const row = checkbox.closest('.expense-table-row');
+        if (row) {
+            if (checkbox.checked) {
+                row.classList.add('bg-primary', 'bg-opacity-10');
+            } else {
+                row.classList.remove('bg-primary', 'bg-opacity-10');
+            }
+        }
+    }
+
+    // 更新项样式（同时更新卡片和表格行）
+    function updateItemStyle(checkbox) {
+        updateCardStyle(checkbox);
+        updateTableRowStyle(checkbox);
+    }
+    
     // 全选/取消全选功能
-    const selectAllCheckbox = document.getElementById('select-all');
-    if (selectAllCheckbox) {
+    document.querySelectorAll('.select-all-checkbox').forEach(selectAllCheckbox => {
         selectAllCheckbox.addEventListener('change', function() {
             const checkboxes = document.querySelectorAll('.expense-checkbox');
             checkboxes.forEach(checkbox => {
                 checkbox.checked = this.checked;
-                updateCardStyle(checkbox);
+                updateItemStyle(checkbox);
             });
             updateBatchButton();
             updateHeaderCheckbox();
         });
-    }
+    })
     
     // 卡片点击选中/取消选中
     document.querySelectorAll('.expense-card').forEach(card => {
@@ -336,12 +353,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const checkbox = this.querySelector('.expense-checkbox');
             if (checkbox) {
                 checkbox.checked = !checkbox.checked;
-                updateCardStyle(checkbox);
+                updateItemStyle(checkbox);
                 updateBatchButton();
                 updateHeaderCheckbox();
             }
         });
-    }
+    });
     
     // 表格行点击选中/取消选中
     document.querySelectorAll('.expense-table-row').forEach(row => {
@@ -357,7 +374,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const checkbox = this.querySelector('.expense-checkbox');
             if (checkbox) {
                 checkbox.checked = !checkbox.checked;
-                updateCardStyle(checkbox);
+                updateItemStyle(checkbox);
                 updateBatchButton();
                 updateHeaderCheckbox();
             }
@@ -367,7 +384,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 复选框变化时更新批量按钮状态
     document.querySelectorAll('.expense-checkbox').forEach(checkbox => {
         checkbox.addEventListener('change', function() {
-            updateCardStyle(this);
+            updateItemStyle(this);
             updateBatchButton();
             updateHeaderCheckbox();
         });
@@ -398,11 +415,14 @@ document.addEventListener('DOMContentLoaded', function() {
         batchButton.disabled = checkedBoxes.length === 0 || !selectedCategory;
     }
     
-    // 更新表头复选框状态
+    // 更新全选复选框状态
     function updateHeaderCheckbox() {
         const checkboxes = document.querySelectorAll('.expense-checkbox');
         const checkedBoxes = document.querySelectorAll('.expense-checkbox:checked');
-        document.getElementById('select-all').checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
+        const isAllChecked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
+        document.querySelectorAll('.select-all-checkbox').forEach(checkbox => {
+            checkbox.checked = isAllChecked;
+        });
     }
     
     // 监听类别选择变化

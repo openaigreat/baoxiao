@@ -3,7 +3,7 @@
 {% block content %}
 <div class="card shadow">
     <div class="card-body">
-        <h2 class="card-title mb-4">支出回款状态详情</h2>
+        <h2 class="card-title mb-4">支出记录详情查询</h2>
         
         <!-- 筛选表单 -->
         <div class="row mb-4">
@@ -23,6 +23,20 @@
                     <option value="其他">其他</option>
                 </select>
             </div>
+            <div class="col-md-2">
+                <label for="date_from" class="form-label">开始日期</label>
+                <input type="date" id="date_from" name="date_from" class="form-control">
+            </div>
+            <div class="col-md-2">
+                <label for="date_to" class="form-label">结束日期</label>
+                <input type="date" id="date_to" name="date_to" class="form-control">
+            </div>
+            <div class="col-md-3">
+                <label for="purpose" class="form-label">用途</label>
+                <input type="text" id="purpose" name="purpose" class="form-control" placeholder="输入用途关键词">
+            </div>
+        </div>
+        <div class="row mb-4">
             <div class="col-md-2">
                 <label for="payment_status" class="form-label">回款状态</label>
                 <select id="payment_status" name="payment_status" class="form-control">
@@ -141,7 +155,7 @@
                         <th>支出日期</th>
                         <th>项目</th>
                         <th>类别</th>
-                        <th>用途</th>
+                        <th width="40%">用途</th>
                         <th>支出金额</th>
                         <th>报销单ID</th>
                         <th>报销状态</th>
@@ -195,6 +209,9 @@ document.getElementById('reset-btn').addEventListener('click', function() {
     // 重置筛选条件
     document.getElementById('project_name').value = '';
     document.getElementById('category').value = '';
+    document.getElementById('date_from').value = '';
+    document.getElementById('date_to').value = '';
+    document.getElementById('purpose').value = '';
     document.getElementById('payment_status').value = '';
     document.getElementById('sort_by').value = 'date_desc';
     applyFilters();
@@ -207,9 +224,18 @@ document.getElementById('project_name').addEventListener('keypress', function(e)
     }
 });
 
+document.getElementById('purpose').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        applyFilters();
+    }
+});
+
 function applyFilters() {
     const projectName = document.getElementById('project_name').value.trim();
     const category = document.getElementById('category').value;
+    const dateFrom = document.getElementById('date_from').value;
+    const dateTo = document.getElementById('date_to').value;
+    const purpose = document.getElementById('purpose').value.trim();
     const paymentStatus = document.getElementById('payment_status').value;
     const sortBy = document.getElementById('sort_by').value;
     
@@ -226,6 +252,24 @@ function applyFilters() {
         url.searchParams.set('category', category);
     } else {
         url.searchParams.delete('category');
+    }
+    
+    if (dateFrom) {
+        url.searchParams.set('date_from', dateFrom);
+    } else {
+        url.searchParams.delete('date_from');
+    }
+    
+    if (dateTo) {
+        url.searchParams.set('date_to', dateTo);
+    } else {
+        url.searchParams.delete('date_to');
+    }
+    
+    if (purpose) {
+        url.searchParams.set('purpose', purpose);
+    } else {
+        url.searchParams.delete('purpose');
     }
     
     if (paymentStatus) {
@@ -249,6 +293,9 @@ window.addEventListener('DOMContentLoaded', function() {
     
     const projectName = urlParams.get('project_name');
     const category = urlParams.get('category');
+    const dateFrom = urlParams.get('date_from');
+    const dateTo = urlParams.get('date_to');
+    const purpose = urlParams.get('purpose');
     const paymentStatus = urlParams.get('payment_status');
     const sortBy = urlParams.get('sort_by');
     
@@ -258,11 +305,26 @@ window.addEventListener('DOMContentLoaded', function() {
     if (category) {
         document.getElementById('category').value = category;
     }
+    if (dateFrom) {
+        document.getElementById('date_from').value = dateFrom;
+    }
+    if (dateTo) {
+        document.getElementById('date_to').value = dateTo;
+    }
+    if (purpose) {
+        document.getElementById('purpose').value = purpose;
+    }
     if (paymentStatus) {
         document.getElementById('payment_status').value = paymentStatus;
     }
     if (sortBy) {
         document.getElementById('sort_by').value = sortBy;
+    }
+    
+    // 初始加载时，如果没有任何筛选参数，则默认按未报销筛选
+    if (!projectName && !category && !dateFrom && !dateTo && !purpose && !paymentStatus) {
+        document.getElementById('payment_status').value = '未报销';
+        applyFilters();
     }
 });
 </script>
