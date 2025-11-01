@@ -41,16 +41,14 @@ def reimbursements():
         date_from = request.args.get('date_from', '')
         date_to = request.args.get('date_to', '')
             
-        # 构建SQL查询和参数
+        # 构建SQL查询和参数 - 使用子查询避免笛卡尔积问题
         query = '''
             SELECT r.*, 
-                   COUNT(re.id) as expense_count,
-                   COALESCE(SUM(re.reimbursement_amount), 0) as calculated_total,
-                   COALESCE(SUM(rp.amount), 0) as total_paid,
-                   MAX(rp.payment_date) as latest_payment_date
+                   (SELECT COUNT(*) FROM reimbursement_expenses WHERE reimbursement_id = r.id) as expense_count,
+                   COALESCE((SELECT SUM(reimbursement_amount) FROM reimbursement_expenses WHERE reimbursement_id = r.id), 0) as calculated_total,
+                   COALESCE((SELECT SUM(amount) FROM reimbursement_payments WHERE reimbursement_id = r.id), 0) as total_paid,
+                   (SELECT MAX(payment_date) FROM reimbursement_payments WHERE reimbursement_id = r.id) as latest_payment_date
             FROM reimbursements r
-            LEFT JOIN reimbursement_expenses re ON r.id = re.reimbursement_id
-            LEFT JOIN reimbursement_payments rp ON r.id = rp.reimbursement_id
         '''
         params = []
         
@@ -70,9 +68,8 @@ def reimbursements():
                 query += " AND r.submit_date <= ?"
                 params.append(date_to)
         
-        # 添加GROUP BY和ORDER BY
+        # 添加ORDER BY（不再需要GROUP BY，因为不再有多表JOIN）
         query += '''
-            GROUP BY r.id
             ORDER BY r.submit_date DESC, r.created_at DESC
         '''
         
@@ -745,4 +742,3 @@ def create_reimbursement_ajax():
             return jsonify({'success': True, 'reimbursement_id': reimbursement_id, 'submission_date': submission_date})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
-

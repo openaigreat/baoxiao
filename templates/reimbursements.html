@@ -33,9 +33,7 @@
                         <option value="">全部状态</option>
                         <option value="草稿">草稿</option>
                         <option value="已提交">已提交</option>
-                        <option value="审核中">审核中</option>
-                        <option value="已批准">已批准</option>
-                        <option value="已拒绝">已拒绝</option>
+                        <option value="已回款">已回款</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -55,8 +53,58 @@
                 </div>
             </form>
         </div>
+        
+        <!-- 筛选条件下的统计数据 -->
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">筛选结果统计</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <p class="h5 font-weight-bold">报销金额总计：¥<span id="totalReimbursement">0.00</span></p>
+                    </div>
+                    <div class="col-md-4">
+                        <p class="h5 font-weight-bold text-success">回款金额总计：¥<span id="totalPaid">0.00</span></p>
+                    </div>
+                    <div class="col-md-4">
+                        <p class="h5 font-weight-bold text-danger">未回款金额：¥<span id="totalUnpaid">0.00</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            // 在前端计算统计数据
+            document.addEventListener('DOMContentLoaded', function() {
+                // 初始化统计变量
+                let totalReimbursement = 0;
+                let totalPaid = 0;
+                
+                // 获取所有报销记录数据
+                const reimbursements = [
+                    {% for reimbursement in reimbursements %}
+                        { calculated_total: {{ reimbursement.calculated_total or 0 }}, total_paid: {{ reimbursement.total_paid or 0 }} },
+                    {% endfor %}
+                ];
+                
+                // 计算总计
+                reimbursements.forEach(item => {
+                    totalReimbursement += parseFloat(item.calculated_total) || 0;
+                    totalPaid += parseFloat(item.total_paid) || 0;
+                });
+                
+                // 计算未回款金额
+                const totalUnpaid = totalReimbursement - totalPaid;
+                
+                // 更新DOM显示
+                document.getElementById('totalReimbursement').textContent = totalReimbursement.toFixed(2);
+                document.getElementById('totalPaid').textContent = totalPaid.toFixed(2);
+                document.getElementById('totalUnpaid').textContent = totalUnpaid.toFixed(2);
+            });
+        </script>
 
-<style>
+  <style>
     .reimbursement-card {
         transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
