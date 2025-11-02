@@ -19,7 +19,7 @@ def create_todo_table():
                     project_id INTEGER NOT NULL,
                     content TEXT NOT NULL,
                     completed INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMP,
                     completed_at TIMESTAMP NULL,
                     sort_order INTEGER DEFAULT 0,
                     FOREIGN KEY (project_id) REFERENCES projects(id)

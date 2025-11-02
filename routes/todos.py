@@ -23,7 +23,7 @@ def todos():
                 # 如果没有记录，从0开始；否则使用比最小值更小的值
                 new_order = (min_order - 1) if min_order is not None else 0
                 conn.execute(
-                    'INSERT INTO todos (project_id, content, sort_order) VALUES (?, ?, ?)',
+                    'INSERT INTO todos (project_id, content, sort_order, created_at) VALUES (?, ?, ?, CURRENT_CST_TIME())',
                     (project_id, content, new_order)
                 )
                 conn.commit()
@@ -33,9 +33,12 @@ def todos():
         
         return redirect(url_for('todos.todos'))
     
-    # 获取所有todo，不按项目分组
+    # 获取所有未完成任务和72小时内的已完成任务
     todos = conn.execute(
-        'SELECT id, content, completed, created_at, completed_at, sort_order FROM todos ORDER BY completed ASC, CASE WHEN completed = 0 THEN sort_order ELSE 9999 END ASC'
+        '''SELECT id, content, completed, created_at, completed_at, sort_order 
+           FROM todos 
+           WHERE completed = 0 OR (completed = 1 AND completed_at >= datetime('now', '-72 hours')) 
+           ORDER BY completed ASC, CASE WHEN completed = 0 THEN sort_order ELSE 9999 END ASC'''
     ).fetchall()
     
     conn.close()
@@ -53,10 +56,10 @@ def toggle_todo(todo_id):
         # 明确转换参数值
         new_status = 1 if completed_param == '1' else 0
         
-        # 更新数据库
+        # 更新数据库，使用东八区时间
         if new_status == 1:  # 标记为完成
             conn.execute(
-                'UPDATE todos SET completed = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?', 
+                'UPDATE todos SET completed = ?, completed_at = CURRENT_CST_TIME() WHERE id = ?', 
                 (new_status, todo_id)
             )
         else:  # 标记为未完成，清空完成时间
@@ -175,7 +178,7 @@ def project_todos(project_id):
                 # 如果没有记录，从0开始；否则使用比最小值更小的值
                 new_order = (min_order - 1) if min_order is not None else 0
                 conn.execute(
-                    'INSERT INTO todos (project_id, content, sort_order) VALUES (?, ?, ?)',
+                    'INSERT INTO todos (project_id, content, sort_order, created_at) VALUES (?, ?, ?, CURRENT_CST_TIME())',
                     (project_id, content, new_order)
                 )
                 conn.commit()
@@ -185,9 +188,12 @@ def project_todos(project_id):
         
         return redirect(url_for('todos.project_todos', project_id=project_id))
     
-    # 获取该项目的所有todo
+    # 获取该项目的所有未完成任务和72小时内的已完成任务
     todos = conn.execute(
-        'SELECT id, content, completed, created_at, completed_at, sort_order FROM todos WHERE project_id = ? ORDER BY completed ASC, CASE WHEN completed = 0 THEN sort_order ELSE 9999 END ASC',
+        '''SELECT id, content, completed, created_at, completed_at, sort_order 
+           FROM todos 
+           WHERE project_id = ? AND (completed = 0 OR (completed = 1 AND completed_at >= datetime('now', '-72 hours'))) 
+           ORDER BY completed ASC, CASE WHEN completed = 0 THEN sort_order ELSE 9999 END ASC''',
         (project_id,)
     ).fetchall()
     
