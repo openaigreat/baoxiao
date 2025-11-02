@@ -1,0 +1,431 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .todo-card {
+        transition: all 0.3s ease;
+    }
+    .todo-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+    .todo-item {
+        transition: all 0.2s ease;
+        cursor: move;
+        position: relative;
+    }
+    .todo-item.dragging {
+        opacity: 0.5;
+        background-color: #e9ecef;
+    }
+    .todo-item.drag-over {
+        border: 2px dashed #007bff;
+        background-color: #f0f7ff;
+    }
+    /* 为状态变化添加平滑过渡效果 */
+    .todo-item.completed, .todo-content.completed {
+        transition: all 0.3s ease;
+    }
+    .todo-item.completed {
+        background-color: #f8f9fa;
+    }
+    .todo-content {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .todo-content.completed {
+        text-decoration: line-through;
+        color: #6c757d;
+    }
+    .add-todo-form {
+        max-width: 600px;
+        margin: 0 auto 2rem;
+    }
+    .todo-checkbox {
+        cursor: pointer;
+        width: 1.2rem;
+        height: 1.2rem;
+    }
+    .todo-project-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background-color: #e9ecef;
+        padding: 0.75rem 1rem;
+        border-radius: 0.375rem 0.375rem 0 0;
+        font-weight: 600;
+    }
+    .todo-count {
+        font-size: 0.875rem;
+        color: #6c757d;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 0.25rem 0.5rem;
+        border-radius: 1rem;
+    }
+</style>
+    <style>
+        .drag-handle {
+            cursor: grab;
+            color: #6c757d;
+            margin-right: 5px;
+            user-select: none;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+    </style>
+
+<div class="container mt-4">
+    <div class="card shadow">
+        <!-- 添加新待办事项表单 -->
+        <div class="card-header bg-primary text-white p-2">
+            <form method="POST" class="mb-0" id="todoForm">
+                <div class="input-group">
+                    <input type="text" name="content" class="form-control" placeholder="输入待办内容，按回车添加" required>
+                    <button type="submit" class="btn btn-light btn-sm">添加</button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- 待办事项列表 -->
+        {% if todos %}
+        <div class="card-body p-0">
+            <!-- PC端表格视图 -->
+            <div class="d-none d-md-block">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th style="width: 50px;"></th>
+                            <th>内容</th>
+                            <th style="width: 180px;">创建时间</th>
+                            <th style="width: 80px;">状态</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for todo in todos %}
+                        <tr class="todo-item {{ 'completed' if todo.completed else '' }}" draggable="true" data-todo-id="{{ todo.id }}" style="height: 40px;">
+                            <td>
+                                <span class="drag-handle">⋮⋮</span>
+                                <form action="{{ url_for('todos.toggle_todo', todo_id=todo.id) }}" method="POST" class="toggle-form">
+                                    <input type="checkbox" class="todo-checkbox" {{ 'checked' if todo.completed else '' }}>
+                                </form>
+                            </td>
+                            <td class="todo-content {{ 'completed' if todo.completed else '' }}" style="vertical-align: middle;">
+                                {{ todo.content }}
+                            </td>
+                            <td style="vertical-align: middle; font-size: 0.8rem;">{{ todo.created_at }}{% if todo.completed and todo.completed_at %}<br><small class="text-muted">完成于: {{ todo.completed_at }}</small>{% endif %}</td>
+                            <td style="vertical-align: middle;">
+                                <span class="badge {{ 'bg-success' if todo.completed else 'bg-primary' }}">
+                                    {{ '已完成' if todo.completed else '未完成' }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 移动端卡片视图 -->
+            <div class="d-md-none">
+                {% for todo in todos %}
+                <div class="todo-item d-flex align-items-center gap-2 p-2 border-bottom {{ 'completed' if todo.completed else '' }}" draggable="true" data-todo-id="{{ todo.id }}">
+                    <span class="drag-handle">⋮⋮</span>
+                    <form action="{{ url_for('todos.toggle_todo', todo_id=todo.id) }}" method="POST" class="toggle-form">
+                        <input type="checkbox" class="todo-checkbox" {{ 'checked' if todo.completed else '' }}>
+                    </form>
+                    <div class="flex-grow-1">
+                        <div class="todo-content {{ 'completed' if todo.completed else '' }}">
+                            {{ todo.content }}
+                        </div>
+                        <small class="text-muted d-block" style="font-size: 0.75rem;">{{ todo.created_at }}{% if todo.completed and todo.completed_at %}<br>完成于: {{ todo.completed_at }}{% endif %}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="card-body p-5 text-center">
+            <p class="text-muted">暂无待办事项</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    // 为待办内容添加点击事件，点击时切换复选框状态（触发change事件而不是直接提交表单）
+    document.querySelectorAll('.todo-content').forEach(element => {
+        element.addEventListener('click', function() {
+            const checkbox = this.closest('.todo-item').querySelector('.todo-checkbox');
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                // 手动触发change事件，让我们的事件监听器处理它
+                const event = new Event('change', { bubbles: true });
+                checkbox.dispatchEvent(event);
+            }
+        });
+    });
+    
+    // 页面加载完成后自动设置焦点到输入框
+    document.addEventListener('DOMContentLoaded', function() {
+        const contentInput = document.querySelector('input[name="content"]');
+        if (contentInput) {
+            contentInput.focus();
+        }
+    });
+    
+    // 为待办事项添加表单添加回车即添加功能
+    const todoForm = document.getElementById('todoForm');
+    if (todoForm) {
+        todoForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const contentInput = this.querySelector('input[name="content"]');
+            const content = contentInput.value.trim();
+            
+            if (!content) {
+                alert('请输入待办内容');
+                return;
+            }
+            
+            // 异步提交表单
+            fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new URLSearchParams({ 'content': content })
+            })
+            .then(response => response.text())
+            .then(() => {
+                // 添加成功后清空输入框
+                contentInput.value = '';
+                // 设置焦点回输入框，等待继续添加
+                contentInput.focus();
+                // 刷新页面以显示新添加的待办事项
+                location.reload();
+                
+                // 页面重载后再次设置焦点
+                setTimeout(() => {
+                    const newContentInput = document.querySelector('input[name="content"]');
+                    if (newContentInput) {
+                        newContentInput.focus();
+                    }
+                }, 500);
+            })
+            .catch(error => {
+                alert('添加失败，请重试');
+                console.error('Error:', error);
+            });
+        });
+    }
+    
+    // 添加拖拽排序功能
+    function setupDragAndDrop() {
+        const todoItems = document.querySelectorAll('.todo-item:not(.completed)');
+        let draggedItem = null;
+        
+        todoItems.forEach(item => {
+            // 设置可拖拽属性
+            item.setAttribute('draggable', 'true');
+            
+            // 开始拖拽
+            item.addEventListener('dragstart', function() {
+                draggedItem = this;
+                setTimeout(() => {
+                    this.classList.add('dragging');
+                }, 0);
+            });
+            
+            // 拖拽结束
+            item.addEventListener('dragend', function() {
+                draggedItem = null;
+                todoItems.forEach(i => i.classList.remove('dragging', 'drag-over'));
+                // 不在这里调用 updateTodoOrder
+            });
+            
+            // 拖拽经过
+            item.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('drag-over');
+            });
+            
+            // 拖拽离开
+            item.addEventListener('dragleave', function() {
+                this.classList.remove('drag-over');
+            });
+            
+            // 拖拽放下
+            item.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+                if (draggedItem !== this) {
+                    const container = this.parentNode;
+                    // 强制移动节点，确保DOM顺序变化（兼容table和div）
+                    container.removeChild(draggedItem);
+                    if (this.nextSibling) {
+                        container.insertBefore(draggedItem, this.nextSibling);
+                    } else {
+                        container.appendChild(draggedItem);
+                    }
+                    // 拖拽放下后，立即收集最新顺序并提交
+                    updateTodoOrder();
+                }
+            });
+        });
+        
+        // 更新排序
+        function updateTodoOrder() {
+            console.log('开始更新排序...');
+            const activeTodoItems = document.querySelectorAll('.todo-item:not(.completed)');
+            console.log(`找到 ${activeTodoItems.length} 个未完成的待办项`);
+            
+            const todoIds = Array.from(activeTodoItems).map(item => {
+                const id = item.getAttribute('data-todo-id');
+                console.log(`收集到待办项ID: ${id}`);
+                return id;
+            });
+            
+            console.log('准备发送的排序数据:', todoIds);
+            
+            // 添加本地存储，用于验证前端数据收集是否正确
+            localStorage.setItem('lastTodoOrder', JSON.stringify(todoIds));
+            console.log('已将排序数据保存到本地存储');
+            
+            // 构建请求对象
+            const requestData = { todoIds: todoIds };
+            console.log('完整的请求数据:', JSON.stringify(requestData));
+            
+            fetch('/update_todo_order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => {
+                console.log('排序请求响应状态:', response.status);
+                console.log('响应头:', response.headers.get('content-type'));
+                return response.json().then(data => ({
+                    status: response.status,
+                    ok: response.ok,
+                    data: data
+                }));
+            })
+            .then(({ status, ok, data }) => {
+                console.log('排序响应数据:', data);
+                console.log('响应状态码:', status);
+                console.log('响应是否成功:', ok);
+                
+                // 检查响应数据结构
+                if (data && typeof data === 'object') {
+                    console.log('成功标志:', data.success);
+                    console.log('更新数量:', data.updated_count);
+                    console.log('接收的ID数量:', data.todo_ids_received);
+                    console.log('验证数据:', data.verification);
+                }
+                
+                if (!ok || !data.success) {
+                    console.error('更新排序失败:', data.error || '未知错误');
+                    alert('排序更新失败: ' + (data.error || '未知错误'));
+                } else {
+                    console.log('排序更新成功！');
+                    console.log(`发送了 ${todoIds.length} 个ID，更新了 ${data.updated_count} 条记录`);
+                    
+                    // 显示成功提示，包含更多信息
+                    const flashMessage = document.createElement('div');
+                    flashMessage.className = 'alert alert-success position-fixed top-20 right-4 z-50';
+                    flashMessage.innerHTML = `排序已保存！<br>更新了 ${data.updated_count} 条记录`;
+                    document.body.appendChild(flashMessage);
+                    setTimeout(() => {
+                        flashMessage.remove();
+                    }, 2000);
+                    
+                    // 立即重新加载页面以验证排序是否持久化
+                    // 注意：这行注释掉了，因为我们希望用户手动刷新来测试
+                    // setTimeout(() => location.reload(), 500);
+                }
+            })
+            .catch(error => {
+                console.error('更新排序请求失败:', error);
+                console.error('错误详情:', error.message, error.stack);
+                alert('排序请求失败: ' + error.message);
+            });
+        }
+    }
+    
+    // 页面加载完成后设置拖拽功能
+    document.addEventListener('DOMContentLoaded', function() {
+        setupDragAndDrop();
+    });
+    
+    // 简化的待办事项勾选功能
+    document.querySelectorAll('.todo-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function(e) {
+            // 阻止默认行为
+            e.preventDefault();
+            
+            // 保存this引用以在回调中使用
+            const self = this;
+            // 获取相关信息
+            const form = this.closest('form');
+            const isChecked = this.checked;
+            
+            // 发送简单的POST请求
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new URLSearchParams({ 'completed': isChecked ? '1' : '0' })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('网络响应异常: ' + response.status);
+                }
+                // 先检查响应是否为JSON格式
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    // 如果不是JSON，直接刷新页面
+                    console.warn('响应不是JSON格式，强制刷新页面');
+                    location.reload();
+                    return Promise.reject('非JSON响应');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.success) {
+                    // 刷新页面以显示更新后的状态
+                    location.reload();
+                } else {
+                    console.error('更新失败:', data ? data.error : '未知错误');
+                    alert('更新失败: ' + (data && data.error ? data.error : '未知错误'));
+                    // 回滚复选框状态
+                    self.checked = !isChecked;
+                }
+            })
+            .catch(error => {
+                // 只在非JSON响应的情况下不显示错误
+                if (error !== '非JSON响应') {
+                    console.error('请求失败:', error);
+                    // 不显示alert，避免干扰用户
+                }
+                // 确保回滚复选框状态
+                self.checked = !isChecked;
+            });
+        });
+    });
+    
+    // 阻止表单的默认提交行为
+    document.querySelectorAll('.toggle-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+    });
+
+</script>
+{% endblock %}

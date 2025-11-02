@@ -38,6 +38,8 @@
                 pageDescription = '创建报销单';
             } else if (path.includes('/edit_reimbursement')) {
                 pageDescription = '编辑报销单';
+            } else if (path.includes('/todos')) {
+                pageDescription = '待办事项';
             }
             
             // 直接设置整个标题
@@ -50,6 +52,7 @@
     <script src="https://unpkg.com/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </head>
 <body>
+    {% if session.username %}
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand" href="/">报销自用</a>
@@ -61,23 +64,23 @@
                 <!-- 主要导航项 -->
                 <div class="navbar-nav mb-3 mb-lg-0">
                     <a class="nav-link" href="/add_expense">记录支出</a>
-                    <a class="nav-link" href="/stats">项目统计</a>
-                    <a class="nav-link" href="/category_stats">费用分类</a>
-                    <a class="nav-link" href="/reimbursements">报销管理</a>
+                <a class="nav-link" href="/stats">项目统计</a>
+                <a class="nav-link" href="/category_stats">费用分类</a>
+                <a class="nav-link" href="/reimbursements">报销管理</a>
+                <a class="nav-link" href="/todos">待办事项</a>
                 </div>
                 
                 <!-- 用户信息和操作 -->
                 <div class="navbar-nav ms-auto">
-                    {% if session.username %}
-                        <span class="nav-link disabled me-2 d-none d-lg-block">欢迎, {{ session.username }}</span>
-                        <span class="nav-link disabled mb-2 d-block d-lg-none">欢迎, {{ session.username }}</span>
-                        <a class="nav-link" href="/change_password">修改密码</a>
-                        <a class="nav-link text-danger" href="/logout">登出</a>
-                    {% endif %}
+                    <span class="nav-link disabled me-2 d-none d-lg-block">欢迎, {{ session.username }}</span>
+                    <span class="nav-link disabled mb-2 d-block d-lg-none">欢迎, {{ session.username }}</span>
+                    <a class="nav-link" href="/change_password">修改密码</a>
+                    <a class="nav-link text-danger" href="/logout">登出</a>
                 </div>
             </div>
         </div>
     </nav>
+    {% endif %}
     <div class="container mt-4">
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}

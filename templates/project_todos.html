@@ -1,0 +1,421 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .todo-item {
+        transition: all 0.2s ease;
+    }
+    .todo-item.completed {
+        background-color: #f8f9fa;
+    }
+    .todo-content {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .todo-content.completed {
+        text-decoration: line-through;
+        color: #6c757d;
+    }
+    .todo-checkbox {
+        cursor: pointer;
+        width: 1.2rem;
+        height: 1.2rem;
+    }
+    .todo-item.dragging {
+        opacity: 0.5;
+        background-color: #e9ecef !important;
+    }
+    .todo-item.drag-over {
+        border: 2px dashed #007bff;
+        background-color: #f0f7ff;
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{{ project.name }} - 待办事项</h2>
+        <a href="{{ url_for('todos.todos') }}" class="btn btn-secondary">返回所有待办</a>
+    </div>
+    
+    <!-- 添加新待办事项表单 -->
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <form method="POST">
+                <div class="row gap-3">
+                    <div class="col-md-8">
+                        <input type="text" name="content" class="form-control" placeholder="待办内容" required>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-primary w-100">添加待办</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 待办事项列表 -->
+    {% if todos %}
+    
+    <!-- PC端表格视图 -->
+    <div class="d-none d-md-block">
+        <div class="card shadow">
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;"></th>
+                            <th>内容</th>
+                            <th style="width: 180px;">创建时间</th>
+                            <th style="width: 80px;">状态</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for todo in todos %}
+                        <tr class="todo-item {{ 'completed' if todo.completed else '' }}" draggable="true" data-todo-id="{{ todo.id }}">
+                            <td>
+                                <form action="{{ url_for('todos.toggle_todo', todo_id=todo.id) }}" method="POST" class="toggle-form">
+                                    <input type="checkbox" class="todo-checkbox" {{ 'checked' if todo.completed else '' }}>
+                                </form>
+                            </td>
+                            <td class="todo-content {{ 'completed' if todo.completed else '' }}">
+                                {{ todo.content }}
+                            </td>
+                            <td>{{ todo.created_at }}{% if todo.completed and todo.completed_at %}<br><small class="text-muted">完成于: {{ todo.completed_at }}</small>{% endif %}</td>
+                            <td>
+                                <span class="badge {{ 'bg-success' if todo.completed else 'bg-primary' }}">
+                                    {{ '已完成' if todo.completed else '未完成' }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 移动端卡片视图 -->
+    <div class="d-md-none">
+        {% for todo in todos %}
+        <div class="card mb-3">
+            <div class="card-body p-3">
+                <div class="todo-item d-flex align-items-center gap-3" draggable="true" data-todo-id="{{ todo.id }}">
+                    <form action="{{ url_for('todos.toggle_todo', todo_id=todo.id) }}" method="POST" class="toggle-form">
+                        <input type="checkbox" class="todo-checkbox" {{ 'checked' if todo.completed else '' }}>
+                    </form>
+                    <div class="flex-grow-1">
+                        <div class="todo-content {{ 'completed' if todo.completed else '' }}">
+                            {{ todo.content }}
+                        </div>
+                        <div class="d-flex justify-content-between mt-1">
+                            <small class="text-muted">{{ todo.created_at }}{% if todo.completed and todo.completed_at %}<br>完成于: {{ todo.completed_at }}{% endif %}</small>
+                            <span class="badge {{ 'bg-success' if todo.completed else 'bg-primary' }}">
+                                {{ '已完成' if todo.completed else '未完成' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    {% else %}
+    <div class="card p-5 text-center">
+        <p class="text-muted">该项目暂无待办事项</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    // 为待办内容添加点击事件，点击时切换复选框状态
+    document.querySelectorAll('.todo-content').forEach(element => {
+        element.addEventListener('click', function() {
+            const checkbox = this.closest('.todo-item').querySelector('.todo-checkbox');
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                checkbox.form.submit();
+            }
+        });
+    });
+    
+    // 使用AJAX提交表单，提升用户体验
+    document.querySelectorAll('.toggle-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const checkbox = this.querySelector('.todo-checkbox');
+            const todoItem = this.closest('.todo-item');
+            const todoContent = todoItem.querySelector('.todo-content');
+            const statusBadge = todoItem.querySelector('.badge');
+            
+            // 记录当前滚动位置
+            const scrollY = window.scrollY;
+            
+            // 立即更新UI，提供即时反馈
+            const isChecked = checkbox.checked;
+            
+            todoItem.classList.toggle('completed', isChecked);
+            if (todoContent) {
+                todoContent.classList.toggle('completed', isChecked);
+            }
+            if (statusBadge) {
+                statusBadge.textContent = isChecked ? '已完成' : '未完成';
+                statusBadge.className = isChecked ? 'badge bg-success' : 'badge bg-primary';
+            }
+            
+            // 如果取消完成状态，移除完成时间显示
+            if (!isChecked) {
+                const completedTimeElement = todoItem.querySelector('.text-muted');
+                if (completedTimeElement) {
+                    // 获取创建时间文本（假设格式是"创建时间\n完成于: ..."）
+                    const textContent = completedTimeElement.textContent || completedTimeElement.innerText;
+                    const parts = textContent.split(/完成于:/i);
+                    if (parts.length > 0) {
+                        // 只保留创建时间部分
+                        completedTimeElement.innerHTML = parts[0].trim();
+                    }
+                }
+            }
+            
+            // 创建表单数据
+            const formData = new FormData();
+            formData.append('completed', isChecked ? '1' : '0');
+            
+            // 异步提交表单
+            fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 如果标记为完成，动态添加完成时间
+                if (isChecked) {
+                    // 获取当前时间作为完成时间
+                    const now = new Date();
+                    const formattedTime = now.toLocaleString();
+                    
+                    // 查找创建时间的显示元素
+                    const createdAtElement = todoItem.querySelector('.text-muted') || todoItem.querySelector('td:nth-child(3)');
+                    
+                    if (createdAtElement) {
+                        // 检查是否已经有完成时间显示
+                        if (!createdAtElement.innerHTML.includes('完成于:')) {
+                            // 添加完成时间显示
+                            if (createdAtElement.tagName === 'TD') {
+                                createdAtElement.innerHTML += '<br><small class="text-muted">完成于: ' + formattedTime + '</small>';
+                            } else {
+                                createdAtElement.innerHTML += '<br>完成于: ' + formattedTime;
+                            }
+                        }
+                    }
+                }
+                // 恢复滚动位置
+                window.scrollTo(0, scrollY);
+            })
+            .catch(error => {
+                // 如果请求失败，回滚UI更改
+                console.error('更新请求失败:', error);
+                checkbox.checked = !isChecked;
+                todoItem.classList.toggle('completed');
+                if (todoContent) {
+                    todoContent.classList.toggle('completed');
+                }
+                if (statusBadge) {
+                    statusBadge.textContent = checkbox.checked ? '已完成' : '未完成';
+                    statusBadge.className = checkbox.checked ? 'badge bg-success' : 'badge bg-primary';
+                }
+                // 恢复滚动位置
+                window.scrollTo(0, scrollY);
+                alert('更新失败，请重试');
+            });
+        });
+    });
+    
+    // 阻止复选框的默认onchange行为
+    document.querySelectorAll('.todo-checkbox').forEach(checkbox => {
+        checkbox.onchange = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            // 不执行表单提交，由我们的事件监听器处理
+            return false;
+        };
+    });
+
+    // 添加拖拽排序功能
+    function setupDragAndDrop() {
+        const todoItems = document.querySelectorAll('.todo-item:not(.completed)');
+        let draggedItem = null;
+        
+        todoItems.forEach(item => {
+            // 设置可拖拽属性
+            item.setAttribute('draggable', 'true');
+            
+            // 开始拖拽
+            item.addEventListener('dragstart', function() {
+                draggedItem = this;
+                setTimeout(() => {
+                    this.classList.add('dragging');
+                }, 0);
+            });
+            
+            // 拖拽结束
+            item.addEventListener('dragend', function() {
+                draggedItem = null;
+                todoItems.forEach(i => i.classList.remove('dragging', 'drag-over'));
+                
+                // 更新排序
+                updateTodoOrder();
+            });
+            
+            // 拖拽经过
+            item.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('drag-over');
+            });
+            
+            // 拖拽离开
+            item.addEventListener('dragleave', function() {
+                this.classList.remove('drag-over');
+            });
+            
+            // 拖拽放下
+            item.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+                
+                if (draggedItem !== this) {
+                    // 找到正确的父容器
+                    let container;
+                    if (this.tagName === 'TR') {
+                        // 表格视图
+                        container = this.closest('tbody');
+                    } else {
+                        // 卡片视图
+                        container = this.closest('.d-md-none');
+                    }
+                    
+                    const isBefore = Array.from(container.querySelectorAll('.todo-item:not(.completed)')).indexOf(draggedItem) < Array.from(container.querySelectorAll('.todo-item:not(.completed)')).indexOf(this);
+                    
+                    // 确保不将待办事项拖到已完成列表中
+                    if (!this.classList.contains('completed')) {
+                        if (isBefore) {
+                            // 对于表格视图和卡片视图的不同处理
+                            if (this.tagName === 'TR') {
+                                container.insertBefore(draggedItem, this);
+                            } else {
+                                // 卡片视图需要插入到父元素（卡片）的位置
+                                const draggedParent = draggedItem.closest('.card');
+                                const thisParent = this.closest('.card');
+                                container.insertBefore(draggedParent, thisParent);
+                            }
+                        } else {
+                            if (this.tagName === 'TR') {
+                                container.insertBefore(draggedItem, this.nextSibling);
+                            } else {
+                                const draggedParent = draggedItem.closest('.card');
+                                const nextParent = this.closest('.card').nextElementSibling;
+                                if (nextParent) {
+                                    container.insertBefore(draggedParent, nextParent);
+                                } else {
+                                    container.appendChild(draggedParent);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+        
+        // 更新排序
+        function updateTodoOrder() {
+            console.log('开始更新排序...');
+            const activeTodoItems = document.querySelectorAll('.todo-item:not(.completed)');
+            console.log(`找到 ${activeTodoItems.length} 个未完成的待办项`);
+            
+            const todoIds = Array.from(activeTodoItems).map(item => {
+                const id = item.getAttribute('data-todo-id');
+                console.log(`收集到待办项ID: ${id}`);
+                return id;
+            });
+            
+            console.log('准备发送的排序数据:', todoIds);
+            
+            // 添加本地存储，用于验证前端数据收集是否正确
+            localStorage.setItem('lastTodoOrder', JSON.stringify(todoIds));
+            console.log('已将排序数据保存到本地存储');
+            
+            // 构建请求对象
+            const requestData = { todoIds: todoIds };
+            console.log('完整的请求数据:', JSON.stringify(requestData));
+            
+            fetch('/update_todo_order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => {
+                console.log('排序请求响应状态:', response.status);
+                console.log('响应头:', response.headers.get('content-type'));
+                return response.json().then(data => ({
+                    status: response.status,
+                    ok: response.ok,
+                    data: data
+                }));
+            })
+            .then(({ status, ok, data }) => {
+                console.log('排序响应数据:', data);
+                console.log('响应状态码:', status);
+                console.log('响应是否成功:', ok);
+                
+                // 检查响应数据结构
+                if (data && typeof data === 'object') {
+                    console.log('成功标志:', data.success);
+                    console.log('更新数量:', data.updated_count);
+                    console.log('接收的ID数量:', data.todo_ids_received);
+                    console.log('验证数据:', data.verification);
+                }
+                
+                if (!ok || !data.success) {
+                    console.error('更新排序失败:', data.error || '未知错误');
+                    alert('排序更新失败: ' + (data.error || '未知错误'));
+                } else {
+                    console.log('排序更新成功！');
+                    console.log(`发送了 ${todoIds.length} 个ID，更新了 ${data.updated_count} 条记录`);
+                    
+                    // 显示成功提示，包含更多信息
+                    const flashMessage = document.createElement('div');
+                    flashMessage.className = 'alert alert-success position-fixed top-20 right-4 z-50';
+                    flashMessage.innerHTML = `排序已保存！<br>更新了 ${data.updated_count} 条记录`;
+                    document.body.appendChild(flashMessage);
+                    setTimeout(() => {
+                        flashMessage.remove();
+                    }, 2000);
+                }
+            })
+            .catch(error => {
+                console.error('更新排序请求失败:', error);
+                console.error('错误详情:', error.message, error.stack);
+                alert('排序请求失败: ' + error.message);
+            });
+        }
+    }
+    
+    // 页面加载完成后设置拖拽功能
+    document.addEventListener('DOMContentLoaded', function() {
+        setupDragAndDrop();
+    });
+</script>
+{% endblock %}

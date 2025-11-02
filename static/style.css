@@ -397,10 +397,42 @@ a {
         margin-bottom: 1rem !important;
     }
     
-    /* 标题样式调整 */
+    /* 标题样式调整 - 与正文保持一致 */
     h1, h2, h3, h4, h5, h6 {
-        font-size: 1.5rem;
-        margin-bottom: 1rem;
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        line-height: 1.2;
+    }
+    
+    /* 缩小行间距 */
+    body {
+        line-height: 1.3;
+    }
+    
+    /* 减少表格行高 */
+    table th, table td {
+        padding: 0.5rem;
+        line-height: 1.2;
+    }
+    
+    /* 减少整体边距 */
+    .mt-4, .my-4 {
+        margin-top: 0.8rem !important;
+    }
+    
+    .mb-4, .my-4 {
+        margin-bottom: 0.8rem !important;
+    }
+    
+    /* 减少卡片内边距 */
+    .card-body {
+        padding: 1rem !important;
+    }
+    
+    /* 减少表单组件间距 */
+    .form-group, .mb-3 {
+        margin-bottom: 0.8rem !important;
     }
     
     /* 链接样式优化 */

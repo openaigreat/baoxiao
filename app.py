@@ -4,6 +4,7 @@ from routes.projects import bp as projects_bp
 from routes.expenses import bp as expenses_bp
 from routes.stats import bp as stats_bp
 from routes.reimbursements import bp as reimbursements_bp
+from routes.todos import bp as todos_bp
 from config import Config
 import os
 
@@ -23,21 +24,34 @@ def create_app():
     app.register_blueprint(expenses_bp)
     app.register_blueprint(stats_bp)
     app.register_blueprint(reimbursements_bp)
+    app.register_blueprint(todos_bp)
     
-    # 使用before_request来保护所有路由（除了登录相关路由）
+    # 使用before_request来保护所有路由（除了登录相关路由和todos模块）
     @app.before_request
     def require_login():
-        # 允许访问的路径
-        allowed_paths = ['/login', '/static/']
+        # 检查是否是需要登录的路径
+        needs_login = True
         
-        # 检查是否需要登录
-        if not any(request.path.startswith(path) for path in allowed_paths):
-            if 'user_id' not in session:
-                return redirect(url_for('auth.login'))
+        # 静态文件不需要登录
+        if request.path.startswith('/static/'):
+            needs_login = False
+        # 登录页面不需要登录
+        elif request.path == '/auth/login' or request.path == '/login':
+            needs_login = False
+        # 根路径重定向到todos
+        elif request.path == '/':
+            needs_login = False
+        # todos相关路径不需要登录
+        elif request.path.startswith('/todos') or request.path.startswith('/toggle_todo') or request.path.startswith('/update_todo_order') or request.path.startswith('/project_todos'):
+            needs_login = False
+        
+        # 其他所有路径都需要登录验证
+        if needs_login and 'user_id' not in session:
+            return redirect(url_for('auth.login'))
     
     @app.route('/')
     def index():
-        return redirect(url_for('stats.stats'))
+        return redirect(url_for('todos.todos'))
     
     return app
 

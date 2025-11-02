@@ -28,12 +28,6 @@ def fetch_reimbursements():
 
 @bp.route('/')
 def reimbursements():
-    # 无需登录验证
-    # 为了兼容性，设置一个默认用户信息
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
-    
     conn = get_db()
     try:
         # 获取筛选参数
@@ -93,10 +87,6 @@ def reimbursements():
 
 @bp.route('/add_reimbursement', methods=['GET', 'POST'])
 def add_reimbursement():
-    # 无需登录验证
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     
     if request.method == 'POST':
         conn = get_db()
@@ -131,10 +121,6 @@ def edit_reimbursement(reimbursement_id):
     def get_reimbursement_payments(reimbursement_id):
         return reimbursement_service.get_reimbursement_payments(reimbursement_id)
     
-    # 无需登录验证
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     
     # 获取报销单信息
     conn = get_db()
@@ -265,10 +251,6 @@ def edit_reimbursement(reimbursement_id):
 
 @bp.route('/add_expense_to_reimbursement', methods=['POST'])
 def add_expense_to_reimbursement():
-    # 无需登录验证
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     
     try:
         reimbursement_id = request.form.get('reimbursement_id', type=int)
@@ -285,10 +267,6 @@ def add_expense_to_reimbursement():
 
 @bp.route('/add_reimbursement_payment/<int:reimbursement_id>', methods=['POST'])
 def add_reimbursement_payment(reimbursement_id):
-    # 无需登录验证
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     
     try:
         # 获取回款信息
@@ -306,10 +284,6 @@ def add_reimbursement_payment(reimbursement_id):
 
 @bp.route('/add_expenses_to_reimbursement', methods=['POST'])
 def add_expenses_to_reimbursement():
-    # 无需登录验证
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     
     try:
         reimbursement_id = request.form.get('reimbursement_id', type=int)
@@ -326,10 +300,6 @@ def add_expenses_to_reimbursement():
 
 @bp.route('/remove_expense_from_reimbursement', methods=['POST'])
 def remove_expense_from_reimbursement():
-    # 无需登录验证
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     
     conn = get_db()
     
@@ -367,10 +337,6 @@ def remove_expense_from_reimbursement():
 
 @bp.route('/delete_reimbursement/<int:reimbursement_id>', methods=['POST'])
 def delete_reimbursement(reimbursement_id):
-    # 无需登录验证
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     
     conn = get_db()
     
@@ -417,10 +383,6 @@ def delete_reimbursement(reimbursement_id):
 
 @bp.route('/get_reimbursements', methods=['GET'])
 def get_reimbursements():
-    # 无需登录验证
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     
     try:
         with get_db_connection() as conn:
@@ -442,10 +404,6 @@ def get_reimbursements():
 
 @bp.route('/get_draft_reimbursements', methods=['GET'])
 def get_draft_reimbursements():
-    # 无需登录验证
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     
     try:
         conn = get_db()
@@ -476,10 +434,6 @@ def get_draft_reimbursements():
 
 @bp.route('/create_reimbursement_and_add_expenses', methods=['POST'])
 def create_reimbursement_and_add_expenses():
-    # 无需登录验证
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     
     conn = get_db_connection()
     
@@ -564,10 +518,6 @@ def create_reimbursement_and_add_expenses():
 
 @bp.route('/batch_add_to_reimbursement', methods=['POST'])
 def batch_add_to_reimbursement():
-    # 无需登录验证
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     
     conn = get_db_connection()
     
@@ -638,10 +588,6 @@ def batch_add_to_reimbursement():
 
 @bp.route('/export_reimbursement/<int:reimbursement_id>')
 def export_reimbursement(reimbursement_id):
-    # 无需登录验证
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     
     try:
         # 获取导出数据
@@ -722,10 +668,6 @@ def export_reimbursement(reimbursement_id):
 
 @bp.route('/create_reimbursement_ajax', methods=['POST'])
 def create_reimbursement_ajax():
-    # 无需登录验证
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     try:
         submission_date = request.form.get('submission_date') or datetime.now().strftime('%Y-%m-%d')
         note = request.form.get('note', '')

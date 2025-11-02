@@ -158,12 +158,6 @@ expense_service = ExpenseService()
 
 @bp.route('/add_expense', methods=['GET', 'POST'])
 def add_expense():
-    # 无需登录验证
-    # 为了兼容性，设置一个默认用户信息
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
-    
     conn = get_db()
     try:
         if request.method == 'POST':
@@ -305,12 +299,6 @@ def import_expense_final():
 
 @bp.route('/edit_expense/<int:expense_id>', methods=['GET', 'POST'])
 def edit_expense(expense_id):
-    # 无需登录验证
-    # 为了兼容性，设置一个默认用户信息
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
-    
     conn = get_db()
     try:
         expense = conn.execute('''

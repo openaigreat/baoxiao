@@ -10,23 +10,11 @@ stats_service = StatsService()
 
 @bp.route('/stats')
 def stats():
-    # 无需登录验证
-    # 为了兼容性，设置一个默认用户信息
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
-    
     stats_data = stats_service.get_project_stats()
     return render_template('stats.html', stats=stats_data)
 
 @bp.route('/expenses/<int:project_id>')
 def expenses(project_id):
-    # 无需登录验证
-    # 为了兼容性，设置一个默认用户信息
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
-    
     # 获取排序参数
     sort_by = request.args.get('sort_by', 'category')  # 默认按类别排序
     sort_order = request.args.get('sort_order', 'asc')  # 默认正序
@@ -54,12 +42,6 @@ def expenses(project_id):
 
 @bp.route('/category_stats')
 def category_stats():
-    # 无需登录验证
-    # 为了兼容性，设置一个默认用户信息
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
-    
     stats_data = stats_service.get_category_stats(session)
     
     # 提取总费用用于模板
@@ -77,12 +59,6 @@ def category_stats():
 
 @bp.route('/category/<category_name>')
 def category_expenses(category_name):
-    # 无需登录验证
-    # 为了兼容性，设置一个默认用户信息
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
-    
     # 获取排序参数
     sort_by = request.args.get('sort_by', 'project_name')
     sort_order = request.args.get('sort_order', 'asc')
@@ -100,12 +76,6 @@ def category_expenses(category_name):
 
 @bp.route('/batch_update_categories', methods=['POST'])
 def batch_update_categories():
-    # 无需登录验证
-    # 为了兼容性，设置一个默认用户信息
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
-    
     # 支持多种方式获取费用ID
     expense_ids_str = request.form.get('expense_ids_hidden')  # 从前端表单的隐藏字段获取
     if expense_ids_str:
@@ -172,12 +142,6 @@ def batch_update_categories():
 
 @bp.route('/orphan_expenses')
 def orphan_expenses():
-    # 无需登录验证
-    # 为了兼容性，设置一个默认用户信息
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
-    
     # 获取排序参数
     sort_by = request.args.get('sort_by', 'category')  # 默认按类别排序
     sort_order = request.args.get('sort_order', 'asc')  # 默认正序
@@ -197,12 +161,6 @@ def batch_assign_project():
     # 添加调试日志
     print("收到batch_assign_project请求")
     print("Form数据:", dict(request.form))
-    
-    # 无需登录验证
-    # 为了兼容性，设置一个默认用户信息
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     
     try:
         # 获取选择的支出ID和目标项目ID
@@ -269,12 +227,6 @@ def batch_assign_project():
 
 @bp.route('/edit_expense/<int:expense_id>', methods=['GET', 'POST'])
 def edit_expense(expense_id):
-    # 无需登录验证
-    # 为了兼容性，设置一个默认用户信息
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
-    
     conn = get_db()
     
     if request.method == 'POST':
@@ -312,12 +264,6 @@ def edit_expense(expense_id):
 
 @bp.route('/delete_expense/<int:expense_id>', methods=['POST'])
 def delete_expense(expense_id):
-    # 无需登录验证
-    # 为了兼容性，设置一个默认用户信息
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
-    
     conn = get_db()
     
     # 获取项目的ID以便重定向
@@ -344,12 +290,6 @@ def delete_expense(expense_id):
 
 @bp.route('/date_expenses')
 def date_expenses():
-    # 无需登录验证
-    # 为了兼容性，设置一个默认用户信息
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
-    
     # 获取筛选参数
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
@@ -443,11 +383,6 @@ def date_expenses():
 
 @bp.route('/get_orphan_expenses_total')
 def get_orphan_expenses_total():
-    # 无需登录验证
-    # 为了兼容性，设置一个默认用户信息
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     conn = get_db()
     try:
         orphan_expenses = conn.execute('''
@@ -470,10 +405,6 @@ def get_orphan_expenses_total():
 @bp.route('/expense_payment_status')
 def expense_payment_status():
     """支出回款状态详情"""
-    # 无需登录验证
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     
     # 获取筛选参数
     project_name = request.args.get('project_name', '').strip()
@@ -512,10 +443,6 @@ def expense_payment_status():
 @bp.route('/project_payment_stats')
 def project_payment_stats():
     """项目回款统计（支持分页）"""
-    # 无需登录验证
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     
     try:
         # 获取分页参数
@@ -548,10 +475,6 @@ def project_payment_stats():
 @bp.route('/project_all_expenses')
 def project_all_expenses():
     """显示项目所有支出记录（支持分页）"""
-    # 无需登录验证
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     
     try:
         project_id = request.args.get('project_id', type=int)
@@ -604,10 +527,6 @@ def project_all_expenses():
 @bp.route('/expense_payment_details')
 def expense_payment_details():
     """支出回款详情页面"""
-    # 无需登录验证
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
     
     try:
         project_id = request.args.get('project_id', type=int)

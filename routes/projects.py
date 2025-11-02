@@ -6,12 +6,6 @@ bp = Blueprint('projects', __name__)
 
 @bp.route('/manage_projects')
 def manage_projects():
-    # 无需登录验证
-    # 为了兼容性，设置一个默认用户信息
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
-    
     conn = get_db()
     projects = conn.execute('SELECT id, name, status, note FROM projects ORDER BY name').fetchall()
     conn.close()
@@ -20,11 +14,6 @@ def manage_projects():
 
 @bp.route('/view_all_projects')
 def view_all_projects():
-    # 无需登录验证
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
-    
     # 获取分页参数
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 30, type=int)
@@ -134,12 +123,6 @@ def view_all_projects():
 
 @bp.route('/add_project', methods=['GET', 'POST'])
 def add_project():
-    # 无需登录验证
-    # 为了兼容性，设置一个默认用户信息
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['username'] = '默认用户'
-    
     # 检查是否为AJAX请求
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
@@ -210,7 +193,6 @@ def get_all_projects():
 
 @bp.route('/edit_project/<int:project_id>', methods=['GET', 'POST'])
 def edit_project(project_id):
-    # 无需登录验证
     
     conn = get_db()
     conn.row_factory = sqlite3.Row  # 设置行工厂为 sqlite3.Row
