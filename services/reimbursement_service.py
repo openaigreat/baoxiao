@@ -229,14 +229,24 @@ class ReimbursementService:
                 WHERE reimbursement_id = ?
             ''', (reimbursement_id,)).fetchone()['total'] or 0
             
-            # 更新报销单的总回款金额
+            # 重新计算报销单的实际总金额（避免总金额与实际关联支出不符）
+            actual_total_amount = conn.execute('''
+                SELECT SUM(reimbursement_amount) as total 
+                FROM reimbursement_expenses 
+                WHERE reimbursement_id = ?
+            ''', (reimbursement_id,)).fetchone()['total'] or 0
+            
+            # 更新报销单的总金额和总回款金额
             conn.execute('''
-                UPDATE reimbursements SET total_paid = ? 
+                UPDATE reimbursements 
+                SET total_paid = ?, 
+                    total_amount = ?, 
+                    updated_at = ?
                 WHERE id = ?
-            ''', (total_paid, reimbursement_id))
+            ''', (total_paid, actual_total_amount, current_time, reimbursement_id))
             
             # 如果回款金额等于或超过报销总额，更新状态为'已回款'
-            if total_paid >= reimbursement['total_amount']:
+            if total_paid >= actual_total_amount:
                 conn.execute('''
                     UPDATE reimbursements SET status = '已回款' 
                     WHERE id = ?

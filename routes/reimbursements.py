@@ -326,6 +326,23 @@ def remove_expense_from_reimbursement():
             WHERE reimbursement_id = ? AND expense_id = ?
         ''', (reimbursement_id, expense_id))
         
+        # 重新计算报销单的总金额
+        total_result = conn.execute('''
+            SELECT SUM(reimbursement_amount) as total
+            FROM reimbursement_expenses
+            WHERE reimbursement_id = ?
+        ''', (reimbursement_id,)).fetchone()
+        
+        total_amount = total_result['total'] or 0.0
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 更新报销单的总金额
+        conn.execute('''
+            UPDATE reimbursements
+            SET total_amount = ?, updated_at = ?
+            WHERE id = ?
+        ''', (total_amount, current_time, reimbursement_id))
+        
         conn.commit()
         conn.close()
         
@@ -572,6 +589,23 @@ def batch_add_to_reimbursement():
             ''', (reimbursement_id, expense_id, expense['amount'], current_time))
             
             added_count += 1
+        
+        # 重新计算报销单的总金额
+        total_result = conn.execute('''
+            SELECT SUM(reimbursement_amount) as total
+            FROM reimbursement_expenses
+            WHERE reimbursement_id = ?
+        ''', (reimbursement_id,)).fetchone()
+        
+        total_amount = total_result['total'] or 0.0
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 更新报销单的总金额
+        conn.execute('''
+            UPDATE reimbursements
+            SET total_amount = ?, updated_at = ?
+            WHERE id = ?
+        ''', (total_amount, current_time, reimbursement_id))
         
         conn.commit()
         conn.close()

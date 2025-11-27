@@ -33,11 +33,11 @@ def todos():
         
         return redirect(url_for('todos.todos'))
     
-    # 获取所有未完成任务和72小时内的已完成任务
+    # 获取所有未完成任务和36小时内的已完成任务
     todos = conn.execute(
         '''SELECT id, content, completed, created_at, completed_at, sort_order 
            FROM todos 
-           WHERE completed = 0 OR (completed = 1 AND completed_at >= datetime('now', '-72 hours')) 
+           WHERE completed = 0 OR (completed = 1 AND completed_at >= datetime('now', 'localtime', '-36 hours')) 
            ORDER BY completed ASC, CASE WHEN completed = 0 THEN sort_order ELSE 9999 END ASC'''
     ).fetchall()
     
@@ -188,11 +188,11 @@ def project_todos(project_id):
         
         return redirect(url_for('todos.project_todos', project_id=project_id))
     
-    # 获取该项目的所有未完成任务和72小时内的已完成任务
+    # 获取该项目的所有未完成任务和36小时内的已完成任务
     todos = conn.execute(
         '''SELECT id, content, completed, created_at, completed_at, sort_order 
            FROM todos 
-           WHERE project_id = ? AND (completed = 0 OR (completed = 1 AND completed_at >= datetime('now', '-72 hours'))) 
+           WHERE project_id = ? AND (completed = 0 OR (completed = 1 AND completed_at >= datetime('now', 'localtime', '-36 hours'))) 
            ORDER BY completed ASC, CASE WHEN completed = 0 THEN sort_order ELSE 9999 END ASC''',
         (project_id,)
     ).fetchall()
